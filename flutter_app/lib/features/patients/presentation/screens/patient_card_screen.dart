@@ -1158,26 +1158,26 @@ extension on _PatientCardScreenState {
         )),
         const SizedBox(width: 12),
         Expanded(child: _actionCard(
-          icon: Icons.medication_liquid_rounded,
-          label: 'Виписати\nрецепт',
+          icon: Icons.local_pharmacy_rounded,
+          label: 'Препарати',
           color: const Color(0xFFEC4899),
-          onTap: () => _showAddPrescriptionSheet(ctx, p.id),
+          onTap: () => _tabController.animateTo(2),
         )),
       ]),
       const SizedBox(height: 12),
       Row(children: [
         Expanded(child: _actionCard(
           icon: Icons.biotech_rounded,
-          label: 'Додати\nаналіз',
+          label: 'Аналізи',
           color: const Color(0xFFF59E0B),
           onTap: () => _tabController.animateTo(3),
         )),
         const SizedBox(width: 12),
         Expanded(child: _actionCard(
-          icon: Icons.local_pharmacy_rounded,
-          label: 'Картки\nпрепаратів',
+          icon: Icons.folder_shared_rounded,
+          label: 'Картки',
           color: const Color(0xFF10B981),
-          onTap: () => _tabController.animateTo(2),
+          onTap: () => _tabController.animateTo(0),
         )),
       ]),
     ]);
