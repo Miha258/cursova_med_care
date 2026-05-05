@@ -17,8 +17,11 @@ export class AppointmentsService {
     return this.repo.save(appointment);
   }
 
-  findAll() {
-    return this.repo.find({ order: { startTime: 'ASC' } });
+  findAll(patientId?: string) {
+    return this.repo.find({
+      where: patientId ? { patientId } : undefined,
+      order: { startTime: 'ASC' },
+    });
   }
 
   async findToday() {

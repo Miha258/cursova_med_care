@@ -21,6 +21,11 @@ class AppointmentCreateRequested extends AppointmentsEvent {
   const AppointmentCreateRequested(this.data);
   @override List<Object?> get props => [data];
 }
+class AppointmentPatientRequested extends AppointmentsEvent {
+  final String patientId;
+  const AppointmentPatientRequested(this.patientId);
+  @override List<Object?> get props => [patientId];
+}
 
 // States
 abstract class AppointmentsState extends Equatable {
@@ -61,9 +66,20 @@ class AppointmentsBloc extends Bloc<AppointmentsEvent, AppointmentsState> {
       : _repository = repository ?? AppointmentsRepository(),
         super(AppointmentsInitial()) {
     on<AppointmentsLoadRequested>(_onLoad);
+    on<AppointmentPatientRequested>(_onPatient);
     on<AppointmentDoctorsRequested>(_onDoctors);
     on<AppointmentSlotsRequested>(_onSlots);
     on<AppointmentCreateRequested>(_onCreate);
+  }
+
+  Future<void> _onPatient(AppointmentPatientRequested event, Emitter<AppointmentsState> emit) async {
+    emit(AppointmentsLoading());
+    try {
+      final list = await _repository.getByPatient(event.patientId);
+      emit(AppointmentsLoaded(list));
+    } catch (e) {
+      emit(AppointmentsError('Помилка завантаження: $e'));
+    }
   }
 
   Future<void> _onLoad(AppointmentsLoadRequested event, Emitter<AppointmentsState> emit) async {

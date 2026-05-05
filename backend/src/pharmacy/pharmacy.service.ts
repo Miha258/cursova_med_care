@@ -39,8 +39,24 @@ export class PharmacyService {
     return this.prescriptionRepo.find({ where: { patientId }, order: { issuedAt: 'DESC' } });
   }
 
-  async createPrescription(dto: Partial<Prescription>) {
-    const rx = this.prescriptionRepo.create(dto);
+  async createPrescription(dto: any) {
+    // Якщо дані приходять з нашої нової форми (фронтенд)
+    if (dto.medicationName) {
+      const data: any = {
+        patientId: dto.patientId,
+        doctorId: dto.doctorId || 'f197d12c-80bc-4480-aa24-dc41f27b1f91',
+        items: [{
+          name: dto.medicationName,
+          dosage: dto.dosage,
+          instruction: dto.instruction || '',
+        }],
+        status: dto.status || 'active',
+      };
+      const rx = this.prescriptionRepo.create(data);
+      return this.prescriptionRepo.save(rx);
+    }
+    // Старий формат
+    const rx = this.prescriptionRepo.create(dto as Partial<Prescription>);
     return this.prescriptionRepo.save(rx);
   }
 }

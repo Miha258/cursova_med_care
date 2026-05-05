@@ -12,9 +12,10 @@ export class AppointmentsController {
   constructor(private service: AppointmentsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'GET /appointments — всі прийоми' })
-  findAll() {
-    return this.service.findAll();
+  @ApiQuery({ name: 'patientId', required: false })
+  @ApiOperation({ summary: 'GET /appointments?patientId=X — всі прийоми або по пацієнту' })
+  findAll(@Query('patientId') patientId?: string) {
+    return this.service.findAll(patientId);
   }
 
   @Get('today')

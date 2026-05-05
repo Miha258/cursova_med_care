@@ -10,6 +10,7 @@ import { PharmacyModule } from './pharmacy/pharmacy.module';
 import { FinanceModule } from './finance/finance.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ReportsModule } from './reports/reports.module';
+import { LabTestsModule } from './lab-tests/lab-tests.module';
 
 // Entities
 import { User } from './users/entities/user.entity';
@@ -22,6 +23,7 @@ import { Prescription } from './pharmacy/entities/prescription.entity';
 import { Invoice } from './finance/entities/invoice.entity';
 import { Ward } from './wards/entities/ward.entity';
 import { AuditLog } from './common/entities/audit-log.entity';
+import { LabTest } from './lab-tests/entities/lab-test.entity';
 
 @Module({
   imports: [
@@ -32,7 +34,7 @@ import { AuditLog } from './common/entities/audit-log.entity';
       username: process.env.DB_USERNAME || 'postgres',
       password: process.env.DB_PASSWORD || 'postgres',
       database: process.env.DB_NAME || 'medcare',
-      entities: [User, Patient, Doctor, Appointment, MedicalRecord, Medication, Prescription, Invoice, Ward, AuditLog],
+      entities: [User, Patient, Doctor, Appointment, MedicalRecord, Medication, Prescription, Invoice, Ward, AuditLog, LabTest],
       synchronize: true, // AUTO-MIGRATE: TypeORM creates all 10 tables on startup
       logging: false,
     }),
@@ -46,6 +48,7 @@ import { AuditLog } from './common/entities/audit-log.entity';
     FinanceModule,
     DashboardModule,
     ReportsModule,
+    LabTestsModule,
   ],
 })
 export class AppModule {}

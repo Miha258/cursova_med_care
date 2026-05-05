@@ -1,7 +1,9 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import '../../data/models/patient_model.dart';
+import '../../data/models/prescription_model.dart';
 import '../../data/repositories/patients_repository.dart';
+import '../../data/repositories/pharmacy_repository.dart';
 
 // Events
 abstract class PatientsEvent extends Equatable {
@@ -22,6 +24,16 @@ class PatientLoadRequested extends PatientsEvent {
 class PatientCreateRequested extends PatientsEvent {
   final Map<String, dynamic> data;
   const PatientCreateRequested(this.data);
+  @override List<Object?> get props => [data];
+}
+class PatientPrescriptionsRequested extends PatientsEvent {
+  final String patientId;
+  const PatientPrescriptionsRequested(this.patientId);
+  @override List<Object?> get props => [patientId];
+}
+class PatientPrescriptionCreateRequested extends PatientsEvent {
+  final Map<String, dynamic> data;
+  const PatientPrescriptionCreateRequested(this.data);
   @override List<Object?> get props => [data];
 }
 
@@ -53,10 +65,21 @@ class PatientsError extends PatientsState {
   const PatientsError(this.message);
   @override List<Object?> get props => [message];
 }
+class PatientPrescriptionsLoaded extends PatientsState {
+  final List<PrescriptionModel> prescriptions;
+  const PatientPrescriptionsLoaded(this.prescriptions);
+  @override List<Object?> get props => [prescriptions];
+}
+class PatientPrescriptionCreated extends PatientsState {
+  final PrescriptionModel prescription;
+  const PatientPrescriptionCreated(this.prescription);
+  @override List<Object?> get props => [prescription];
+}
 
 // BLoC
 class PatientsBloc extends Bloc<PatientsEvent, PatientsState> {
   final PatientsRepository _repository;
+  final PharmacyRepository _pharmacy = PharmacyRepository();
 
   PatientsBloc({PatientsRepository? repository})
       : _repository = repository ?? PatientsRepository(),
@@ -65,6 +88,8 @@ class PatientsBloc extends Bloc<PatientsEvent, PatientsState> {
     on<PatientsSearchRequested>(_onSearch);
     on<PatientLoadRequested>(_onLoadOne);
     on<PatientCreateRequested>(_onCreate);
+    on<PatientPrescriptionsRequested>(_onLoadPrescriptions);
+    on<PatientPrescriptionCreateRequested>(_onCreatePrescription);
   }
 
   Future<void> _onLoad(PatientsLoadRequested event, Emitter<PatientsState> emit) async {
@@ -106,6 +131,25 @@ class PatientsBloc extends Bloc<PatientsEvent, PatientsState> {
       emit(PatientsLoaded(patients));
     } catch (e) {
       emit(PatientsError('Помилка створення пацієнта: $e'));
+    }
+  }
+
+  Future<void> _onLoadPrescriptions(PatientPrescriptionsRequested event, Emitter<PatientsState> emit) async {
+    try {
+      final prescriptions = await _pharmacy.getPrescriptions(event.patientId);
+      emit(PatientPrescriptionsLoaded(prescriptions));
+    } catch (e) {
+      emit(PatientsError(e.toString()));
+    }
+  }
+
+  Future<void> _onCreatePrescription(PatientPrescriptionCreateRequested event, Emitter<PatientsState> emit) async {
+    try {
+      final p = await _pharmacy.createPrescription(event.data);
+      emit(PatientPrescriptionCreated(p));
+      add(PatientPrescriptionsRequested(p.patientId));
+    } catch (e) {
+      emit(PatientsError(e.toString()));
     }
   }
 }

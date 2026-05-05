@@ -149,7 +149,10 @@ class _NewAppointmentScreenState extends State<NewAppointmentScreen> {
 
   Widget _buildDoctorSelector() => BlocBuilder<AppointmentsBloc, AppointmentsState>(
         builder: (context, state) {
-          final doctors = state is AppointmentSlotsLoaded ? state.doctors : <dynamic>[];
+          List<DoctorModel> doctors = [];
+          if (state is AppointmentSlotsLoaded) {
+            doctors = state.doctors;
+          }
           return Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(color: AppColors.card, borderRadius: BorderRadius.circular(14), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)]),

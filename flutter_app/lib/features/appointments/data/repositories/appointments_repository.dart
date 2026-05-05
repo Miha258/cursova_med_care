@@ -34,5 +34,10 @@ class AppointmentsRepository {
     return AppointmentModel.fromJson(response.data);
   }
 
+  Future<List<AppointmentModel>> getByPatient(String patientId) async {
+    final response = await _api.get(ApiConstants.appointments, queryParameters: {'patientId': patientId});
+    return (response.data as List).map((e) => AppointmentModel.fromJson(e)).toList();
+  }
+
   Future<void> cancel(String id) => _api.delete('${ApiConstants.appointments}/$id');
 }
