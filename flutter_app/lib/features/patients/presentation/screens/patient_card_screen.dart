@@ -560,6 +560,16 @@ class _LabTestsTabState extends State<_LabTestsTab> {
     final result = t['result'] ?? '—';
     final status = t['status'] ?? '';
     final createdAt = t['createdAt'] ?? t['date'] ?? '';
+
+    // Мапа статусів для відображення
+    final statusMap = {
+      'pending': {'label': 'Очікується', 'color': AppColors.primary},
+      'normal': {'label': 'Норма', 'color': AppColors.success},
+      'abnormal': {'label': 'Відхилення', 'color': AppColors.danger},
+    };
+
+    final displayStatus = statusMap[status.toLowerCase()] ?? {'label': status, 'color': AppColors.textSecondary};
+
     String dateStr = '—';
     if (createdAt.isNotEmpty) {
       try {
@@ -580,8 +590,10 @@ class _LabTestsTabState extends State<_LabTestsTab> {
         const SizedBox(height: 8),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Text('Результат: $result', style: const TextStyle(fontSize: 13)),
-          if (status.isNotEmpty) Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), decoration: BoxDecoration(color: AppColors.success.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-              child: Text(status, style: const TextStyle(color: AppColors.success, fontSize: 10, fontWeight: FontWeight.bold))),
+          if (status.isNotEmpty) Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(color: (displayStatus['color'] as Color).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+              child: Text(displayStatus['label'] as String, style: TextStyle(color: displayStatus['color'] as Color, fontSize: 10, fontWeight: FontWeight.bold))),
         ]),
       ]),
     );
@@ -631,9 +643,9 @@ class _AddLabTestSheetState extends State<_AddLabTestSheet> {
             try {
               await ApiService.instance.post('/lab-tests', data: {
                 'patientId': widget.patientId,
-                'testName': _nameCtrl.text,
-                'result': _resCtrl.text,
-                'status': 'Завершено',
+                'testName': _nameCtrl.text.trim(),
+                'result': _resCtrl.text.trim(),
+                'status': 'normal', // Валідний статус для бекенду
               });
               if (mounted) { Navigator.pop(context); widget.onSaved(); }
             } catch (e) {
