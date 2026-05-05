@@ -31,6 +31,11 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
         elevation: 0,
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Оновити',
+            onPressed: () => context.read<AppointmentsBloc>().add(AppointmentsLoadRequested()),
+          ),
+          IconButton(
             icon: const Icon(Icons.add),
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(
               builder: (_) => BlocProvider(

@@ -39,6 +39,11 @@ class _PatientsListScreenState extends State<PatientsListScreen> {
         elevation: 0,
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Оновити',
+            onPressed: () => context.read<PatientsBloc>().add(PatientsLoadRequested()),
+          ),
+          IconButton(
             icon: const Icon(Icons.person_add_outlined),
             onPressed: () => _showAddPatientDialog(context),
           ),

@@ -69,15 +69,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ],
               ),
-              IconButton(
-                onPressed: () => _confirmLogout(context),
-                icon: const Icon(Icons.logout, color: Colors.white),
-                tooltip: 'Вийти',
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.white.withOpacity(0.18),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              Row(children: [
+                IconButton(
+                  onPressed: () => context.read<DashboardBloc>().add(DashboardLoadRequested()),
+                  icon: const Icon(Icons.refresh, color: Colors.white),
+                  tooltip: 'Оновити',
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.white.withOpacity(0.18),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: () => _confirmLogout(context),
+                  icon: const Icon(Icons.logout, color: Colors.white),
+                  tooltip: 'Вийти',
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.white.withOpacity(0.18),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ]),
             ],
           ),
           const SizedBox(height: 18),
