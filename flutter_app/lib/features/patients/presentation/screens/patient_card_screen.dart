@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/network/api_service.dart';
 import '../bloc/patients_bloc.dart';
-import '../../data/models/patient_model.dart';
 import '../../data/models/prescription_model.dart';
 import '../../../appointments/presentation/screens/new_appointment_screen.dart';
 import '../../../appointments/data/repositories/appointments_repository.dart';
@@ -273,6 +272,7 @@ class _PatientCardScreenState extends State<PatientCardScreen> with SingleTicker
         ]),
       );
 
+  // ignore: unused_element
   void _showAddDiagnosisSheet(BuildContext ctx) {
     showModalBottomSheet(
       context: ctx,
@@ -435,6 +435,37 @@ class _MedicationsTabState extends State<_MedicationsTab> {
     });
   }
 
+  Future<void> _deleteMed(Map<String, dynamic> m) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Видалити препарат?'),
+        content: Text('«${m['name']}» буде назавжди видалено з бази.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Скасувати')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Видалити', style: TextStyle(color: AppColors.danger)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await ApiService.instance.delete('/medications/${m['id']}');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Препарат «${m['name']}» видалено'), backgroundColor: AppColors.success));
+        _load();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Помилка: $e'), backgroundColor: AppColors.danger));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator(color: AppColors.primary));
@@ -443,18 +474,34 @@ class _MedicationsTabState extends State<_MedicationsTab> {
       Container(
         color: AppColors.background,
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-        child: TextField(
-          onChanged: _search,
-          decoration: InputDecoration(
-            hintText: 'Пошук препарату...',
-            hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-            prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary, size: 20),
-            filled: true,
-            fillColor: AppColors.card,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(children: [
+          Expanded(
+            child: TextField(
+              onChanged: _search,
+              decoration: InputDecoration(
+                hintText: 'Пошук препарату...',
+                hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary, size: 20),
+                filled: true,
+                fillColor: AppColors.card,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              ),
+            ),
           ),
-        ),
+          const SizedBox(width: 10),
+          GestureDetector(
+            onTap: () => _showAddMedSheet(context),
+            child: Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.add, color: Colors.white, size: 22),
+            ),
+          ),
+        ]),
       ),
       Expanded(
         child: _filtered.isEmpty
@@ -463,11 +510,19 @@ class _MedicationsTabState extends State<_MedicationsTab> {
                 const SizedBox(height: 12),
                 Text(_query.isEmpty ? 'Препаратів немає' : 'Нічого не знайдено',
                     style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
+                if (_query.isEmpty) ...[
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: () => _showAddMedSheet(context),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Додати препарат'),
+                  ),
+                ],
               ]))
             : RefreshIndicator(
                 onRefresh: _load,
                 child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
                   itemCount: _filtered.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 10),
                   itemBuilder: (_, i) => _medCard(context, _filtered[i]),
@@ -506,30 +561,40 @@ class _MedicationsTabState extends State<_MedicationsTab> {
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text)),
-          const SizedBox(height: 3),
-          Row(children: [
+          const SizedBox(height: 4),
+          Wrap(spacing: 6, children: [
             _badge('$qty $unit', isLow ? AppColors.warning : AppColors.success),
-            const SizedBox(width: 8),
             _badge('${price.toStringAsFixed(0)} грн', AppColors.primary),
-            if (isLow) ...[
-              const SizedBox(width: 8),
-              _badge('⚠ Мало', AppColors.warning),
-            ],
+            if (isLow) _badge('⚠ Мало', AppColors.warning),
           ]),
         ])),
         const SizedBox(width: 8),
-        ElevatedButton(
-          onPressed: () => _prescribeSheet(ctx, m),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFEC4899),
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            minimumSize: Size.zero,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+        Column(mainAxisSize: MainAxisSize.min, children: [
+          ElevatedButton(
+            onPressed: () => _prescribeSheet(ctx, m),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEC4899),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              minimumSize: Size.zero,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+              textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+            ),
+            child: const Text('Рецепт'),
           ),
-          child: const Text('Рецепт'),
-        ),
+          const SizedBox(height: 4),
+          GestureDetector(
+            onTap: () => _deleteMed(m),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: AppColors.danger.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: const Text('Видалити', style: TextStyle(fontSize: 11, color: AppColors.danger, fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ]),
       ]),
     );
   }
@@ -547,13 +612,161 @@ class _MedicationsTabState extends State<_MedicationsTab> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => BlocProvider.value(
         value: ctx.read<PatientsBloc>(),
-        child: _AddPrescriptionSheet(
-          patientId: widget.patientId,
-          prefillMedication: med['name'] ?? '',
+        child: _AddPrescriptionSheet(patientId: widget.patientId, prefillMedication: med['name'] ?? ''),
+      ),
+    );
+  }
+
+  void _showAddMedSheet(BuildContext ctx) {
+    showModalBottomSheet(
+      context: ctx,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => _AddMedicationSheet(onSaved: _load),
+    );
+  }
+}
+
+// ── Форма додавання препарату ─────────────────────────────────────────────
+class _AddMedicationSheet extends StatefulWidget {
+  final VoidCallback onSaved;
+  const _AddMedicationSheet({required this.onSaved});
+  @override State<_AddMedicationSheet> createState() => _AddMedicationSheetState();
+}
+
+class _AddMedicationSheetState extends State<_AddMedicationSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameCtrl = TextEditingController();
+  final _qtyCtrl = TextEditingController();
+  final _minQtyCtrl = TextEditingController();
+  final _priceCtrl = TextEditingController();
+  final _expiryCtrl = TextEditingController();
+  String _unit = 'таб.';
+  bool _saving = false;
+
+  final _units = ['таб.', 'капс.', 'мл', 'амп.', 'фл.', 'шт.'];
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose(); _qtyCtrl.dispose(); _minQtyCtrl.dispose();
+    _priceCtrl.dispose(); _expiryCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _saving = true);
+    try {
+      await ApiService.instance.post('/medications', data: {
+        'name': _nameCtrl.text.trim(),
+        'quantity': int.tryParse(_qtyCtrl.text.trim()) ?? 0,
+        'minQuantity': int.tryParse(_minQtyCtrl.text.trim()) ?? 0,
+        'price': double.tryParse(_priceCtrl.text.trim()) ?? 0.0,
+        'unit': _unit,
+        if (_expiryCtrl.text.isNotEmpty) 'expiryDate': _expiryCtrl.text.trim(),
+      });
+      if (mounted) {
+        Navigator.pop(context);
+        widget.onSaved();
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('✅ Препарат додано'), backgroundColor: AppColors.success));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Помилка: $e'), backgroundColor: AppColors.danger));
+      }
+    }
+    if (mounted) setState(() => _saving = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 16, right: 16, top: 16),
+      child: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Center(child: Container(width: 36, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)))),
+            const SizedBox(height: 16),
+            const Center(child: Text('Новий препарат', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800))),
+            const SizedBox(height: 20),
+
+            TextFormField(
+              controller: _nameCtrl,
+              decoration: _dec('Назва препарату *', hint: 'напр. Парацетамол 500мг'),
+              validator: (v) => v == null || v.isEmpty ? "Обов'язкове поле" : null,
+            ),
+            const SizedBox(height: 12),
+
+            Row(children: [
+              Expanded(child: TextFormField(
+                controller: _qtyCtrl,
+                keyboardType: TextInputType.number,
+                decoration: _dec('Кількість *', hint: '100'),
+                validator: (v) => v == null || v.isEmpty ? 'Введіть кількість' : null,
+              )),
+              const SizedBox(width: 10),
+              Expanded(child: DropdownButtonFormField<String>(
+                initialValue: _unit,
+                decoration: _dec('Одиниця'),
+                items: _units.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
+                onChanged: (v) { if (v != null) setState(() => _unit = v); },
+              )),
+            ]),
+            const SizedBox(height: 12),
+
+            Row(children: [
+              Expanded(child: TextFormField(
+                controller: _minQtyCtrl,
+                keyboardType: TextInputType.number,
+                decoration: _dec('Мін. залишок', hint: '20'),
+              )),
+              const SizedBox(width: 10),
+              Expanded(child: TextFormField(
+                controller: _priceCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: _dec('Ціна (грн)', hint: '45.50'),
+              )),
+            ]),
+            const SizedBox(height: 12),
+
+            TextFormField(
+              controller: _expiryCtrl,
+              decoration: _dec('Термін придатності', hint: '2027-12-31'),
+              keyboardType: TextInputType.datetime,
+            ),
+            const SizedBox(height: 20),
+
+            SizedBox(
+              width: double.infinity, height: 52,
+              child: ElevatedButton(
+                onPressed: _saving ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981), foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: _saving
+                    ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('Додати препарат', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ]),
         ),
       ),
     );
   }
+
+  InputDecoration _dec(String label, {String? hint}) => InputDecoration(
+        labelText: label, hintText: hint,
+        labelStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.border)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.border)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      );
 }
 
 // ── Вкладка "Аналізи" ───────────────────────────────────────────────────
@@ -706,19 +919,21 @@ class _AddLabTestSheetState extends State<_AddLabTestSheet> {
         const SizedBox(height: 20),
         SizedBox(width: double.infinity, height: 50, child: ElevatedButton(
           onPressed: _saving ? null : () async {
+            final nav = Navigator.of(context);
+            final messenger = ScaffoldMessenger.of(context);
             setState(() => _saving = true);
             try {
               await ApiService.instance.post('/lab-tests', data: {
                 'patientId': widget.patientId,
                 'testName': _nameCtrl.text.trim(),
                 'result': _resCtrl.text.trim(),
-                'status': 'normal', // Валідний статус для бекенду
+                'status': 'normal',
               });
-              if (mounted) { Navigator.pop(context); widget.onSaved(); }
+              if (mounted) { nav.pop(); widget.onSaved(); }
             } catch (e) {
-              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+              if (mounted) messenger.showSnackBar(SnackBar(content: Text('Помилка: $e')));
             }
-            setState(() => _saving = false);
+            if (mounted) setState(() => _saving = false);
           },
           style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
           child: const Text('Зберегти'),

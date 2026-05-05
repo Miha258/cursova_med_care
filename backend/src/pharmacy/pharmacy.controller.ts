@@ -34,6 +34,12 @@ export class PharmacyController {
   update(@Param('id') id: string, @Body() dto: Partial<Medication>) {
     return this.service.updateMedication(id, dto);
   }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'DELETE /medications/:id — видалити медикамент' })
+  remove(@Param('id') id: string) {
+    return this.service.deleteMedication(id);
+  }
 }
 
 @ApiTags('pharmacy')

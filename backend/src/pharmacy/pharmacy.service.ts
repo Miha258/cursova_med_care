@@ -34,6 +34,12 @@ export class PharmacyService {
     return this.medicationRepo.findOne({ where: { id } });
   }
 
+  async deleteMedication(id: string) {
+    const med = await this.medicationRepo.findOne({ where: { id } });
+    if (!med) throw new NotFoundException('Медикамент не знайдено');
+    return this.medicationRepo.remove(med);
+  }
+
   // Prescriptions
   async findPrescriptionsByPatient(patientId: string) {
     const list = await this.prescriptionRepo.find({ where: { patientId }, order: { issuedAt: 'DESC' } });
