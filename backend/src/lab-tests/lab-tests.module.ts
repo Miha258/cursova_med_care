@@ -8,6 +8,5 @@ import { LabTestsService } from './lab-tests.service';
   imports: [TypeOrmModule.forFeature([LabTest])],
   controllers: [LabTestsController],
   providers: [LabTestsService],
-  exports: [LabTestsService],
 })
 export class LabTestsModule {}

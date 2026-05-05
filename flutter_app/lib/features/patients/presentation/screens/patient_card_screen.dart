@@ -18,7 +18,7 @@ class PatientCardScreen extends StatefulWidget {
 
 class _PatientCardScreenState extends State<PatientCardScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final _tabs = ['Картка', 'Прийоми', 'Рецепти', 'Аналізи', 'Діагнози'];
+  final _tabs = ['Картки', 'Прийоми', 'Препарати', 'Аналізи', 'Діагнози'];
 
   @override
   void initState() {
@@ -121,7 +121,7 @@ class _PatientCardScreenState extends State<PatientCardScreen> with SingleTicker
                     children: [
                       _buildCardTab(ctx, p),
                       _buildAppointmentsTab(ctx, p.id, p.fullName),
-                      _buildPrescriptionsTab(ctx, p.id),
+                      _MedicationsTab(patientId: p.id),
                       _LabTestsTab(patientId: p.id),
                       _buildDiagnosesTab(ctx, p.id),
                     ],
@@ -190,25 +190,6 @@ class _PatientCardScreenState extends State<PatientCardScreen> with SingleTicker
     );
   }
 
-  // ── Вкладка "Рецепти" ────────────────────────────────────────────────────
-  Widget _buildPrescriptionsTab(BuildContext ctx, String patientId) {
-    return BlocBuilder<PatientsBloc, PatientsState>(
-      builder: (context, state) {
-        if (state is PatientDetailLoaded) {
-          final rxs = state.prescriptions;
-          if (rxs.isEmpty) return _emptyState(Icons.medication, 'Рецептів немає', 'Випишіть перший рецепт');
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: rxs.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (_, i) => _prescriptionCard(rxs[i]),
-          );
-        }
-        return const SizedBox();
-      },
-    );
-  }
-
   Widget _appointmentCard(dynamic app) {
     return Container(
       padding: const EdgeInsets.all(14),
@@ -226,79 +207,6 @@ class _PatientCardScreenState extends State<PatientCardScreen> with SingleTicker
       ]),
     );
   }
-
-  Widget _prescriptionCard(PrescriptionModel rx) {
-    final color = rx.status == 'active' ? AppColors.success : rx.status == 'completed' ? AppColors.primary : AppColors.textSecondary;
-    final statusLabel = rx.status == 'active' ? 'Активний' : rx.status == 'completed' ? 'Завершено' : 'Скасовано';
-    
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: AppColors.card, borderRadius: BorderRadius.circular(14),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)]),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Row(children: [
-            const Icon(Icons.medication, color: AppColors.primary, size: 20),
-            const SizedBox(width: 8),
-            Text(rx.medicationName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-          ]),
-          Row(children: [
-            IconButton(
-              icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.primary),
-              onPressed: () => _showAddPrescriptionSheet(context, rx.patientId, prescription: rx),
-              constraints: const BoxConstraints(),
-              padding: EdgeInsets.zero,
-            ),
-            const SizedBox(width: 12),
-            IconButton(
-              icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.danger),
-              onPressed: () => _showDeletePrescriptionDialog(rx),
-              constraints: const BoxConstraints(),
-              padding: EdgeInsets.zero,
-            ),
-          ]),
-        ]),
-        const SizedBox(height: 8),
-        Row(children: [
-          _rxChip(Icons.straighten, rx.dosage),
-          const SizedBox(width: 12),
-          Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-              child: Text(statusLabel, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w700))),
-        ]),
-        if (rx.instruction.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Text(rx.instruction, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontStyle: FontStyle.italic)),
-        ],
-      ]),
-    );
-  }
-
-  void _showDeletePrescriptionDialog(PrescriptionModel rx) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Видалити рецепт?'),
-        content: const Text('Цю дію неможливо буде скасувати.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Скасувати')),
-          TextButton(
-            onPressed: () {
-              context.read<PatientsBloc>().add(PatientPrescriptionDeleteRequested(rx.id, rx.patientId));
-              Navigator.pop(ctx);
-            },
-            child: const Text('Видалити', style: TextStyle(color: AppColors.danger)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _rxChip(IconData icon, String text) => Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 13, color: AppColors.textSecondary),
-        const SizedBox(width: 3),
-        Text(text, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-      ]);
 
   void _showAddPrescriptionSheet(BuildContext ctx, String patientId, {PrescriptionModel? prescription}) {
     showModalBottomSheet(
@@ -489,6 +397,165 @@ class _AddDiagnosisSheetState extends State<_AddDiagnosisSheet> {
       );
 }
 
+// ── Вкладка "Препарати" ──────────────────────────────────────────────────
+class _MedicationsTab extends StatefulWidget {
+  final String patientId;
+  const _MedicationsTab({required this.patientId});
+  @override State<_MedicationsTab> createState() => _MedicationsTabState();
+}
+
+class _MedicationsTabState extends State<_MedicationsTab> {
+  List<Map<String, dynamic>> _all = [];
+  List<Map<String, dynamic>> _filtered = [];
+  bool _loading = true;
+  String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final r = await ApiService.instance.get('/medications');
+      final list = List<Map<String, dynamic>>.from(r.data);
+      if (mounted) setState(() { _all = list; _filtered = list; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _search(String q) {
+    setState(() {
+      _query = q;
+      _filtered = q.isEmpty
+          ? _all
+          : _all.where((m) => (m['name'] as String).toLowerCase().contains(q.toLowerCase())).toList();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+
+    return Column(children: [
+      Container(
+        color: AppColors.background,
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+        child: TextField(
+          onChanged: _search,
+          decoration: InputDecoration(
+            hintText: 'Пошук препарату...',
+            hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary, size: 20),
+            filled: true,
+            fillColor: AppColors.card,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          ),
+        ),
+      ),
+      Expanded(
+        child: _filtered.isEmpty
+            ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                const Icon(Icons.local_pharmacy_outlined, size: 56, color: AppColors.border),
+                const SizedBox(height: 12),
+                Text(_query.isEmpty ? 'Препаратів немає' : 'Нічого не знайдено',
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
+              ]))
+            : RefreshIndicator(
+                onRefresh: _load,
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                  itemCount: _filtered.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (_, i) => _medCard(context, _filtered[i]),
+                ),
+              ),
+      ),
+    ]);
+  }
+
+  Widget _medCard(BuildContext ctx, Map<String, dynamic> m) {
+    final qty = (m['quantity'] as num?)?.toInt() ?? 0;
+    final minQty = (m['minQuantity'] as num?)?.toInt() ?? 0;
+    final isLow = qty <= minQty;
+    final price = (m['price'] as num?)?.toDouble() ?? 0.0;
+    final unit = m['unit'] ?? 'таб.';
+    final name = m['name'] ?? '—';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2))],
+        border: isLow ? Border.all(color: AppColors.warning.withValues(alpha: 0.4), width: 1) : null,
+      ),
+      child: Row(children: [
+        Container(
+          width: 46, height: 46,
+          decoration: BoxDecoration(
+            color: isLow ? AppColors.warning.withValues(alpha: 0.12) : const Color(0xFF10B981).withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(Icons.local_pharmacy_rounded,
+              color: isLow ? AppColors.warning : const Color(0xFF10B981), size: 22),
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text)),
+          const SizedBox(height: 3),
+          Row(children: [
+            _badge('$qty $unit', isLow ? AppColors.warning : AppColors.success),
+            const SizedBox(width: 8),
+            _badge('${price.toStringAsFixed(0)} грн', AppColors.primary),
+            if (isLow) ...[
+              const SizedBox(width: 8),
+              _badge('⚠ Мало', AppColors.warning),
+            ],
+          ]),
+        ])),
+        const SizedBox(width: 8),
+        ElevatedButton(
+          onPressed: () => _prescribeSheet(ctx, m),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFEC4899),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            minimumSize: Size.zero,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+          ),
+          child: const Text('Рецепт'),
+        ),
+      ]),
+    );
+  }
+
+  Widget _badge(String text, Color color) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+        child: Text(text, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+      );
+
+  void _prescribeSheet(BuildContext ctx, Map<String, dynamic> med) {
+    showModalBottomSheet(
+      context: ctx,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => BlocProvider.value(
+        value: ctx.read<PatientsBloc>(),
+        child: _AddPrescriptionSheet(
+          patientId: widget.patientId,
+          prefillMedication: med['name'] ?? '',
+        ),
+      ),
+    );
+  }
+}
+
 // ── Вкладка "Аналізи" ───────────────────────────────────────────────────
 class _LabTestsTab extends StatefulWidget {
   final String patientId;
@@ -540,7 +607,7 @@ class _LabTestsTabState extends State<_LabTestsTab> {
       ),
       Container(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        decoration: BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border))),
+        decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border))),
         child: ElevatedButton.icon(
           onPressed: () => _showAddLabTestSheet(context),
           icon: const Icon(Icons.add, size: 18),
@@ -689,11 +756,17 @@ class _DiagnosesTabState extends State<_DiagnosesTab> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) return const Center(child: CircularProgressIndicator(color: AppColors.primary));
     return Column(children: [
       Expanded(
         child: _diagnoses.isEmpty
-            ? const Center(child: Text('Діагнози відсутні'))
+            ? const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(Icons.assignment_outlined, size: 56, color: AppColors.border),
+                SizedBox(height: 16),
+                Text('Діагнозів немає', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
+                SizedBox(height: 6),
+                Text('Натисніть «+» щоб додати', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+              ]))
             : ListView.separated(
                 padding: const EdgeInsets.all(16),
                 itemCount: _diagnoses.length,
@@ -701,28 +774,70 @@ class _DiagnosesTabState extends State<_DiagnosesTab> {
                 itemBuilder: (_, i) => _diagnosisCard(_diagnoses[i]),
               ),
       ),
+      Container(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border))),
+        child: ElevatedButton.icon(
+          onPressed: () => showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+            builder: (_) => _AddDiagnosisSheet(patientId: widget.patientId, onSaved: _load),
+          ),
+          icon: const Icon(Icons.add, size: 18),
+          label: const Text('Додати діагноз'),
+          style: ElevatedButton.styleFrom(
+            minimumSize: const Size(double.infinity, 50),
+            backgroundColor: AppColors.primary, foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          ),
+        ),
+      ),
     ]);
   }
 
   Widget _diagnosisCard(Map<String, dynamic> d) {
+    final bp = d['bloodPressure'];
+    final hr = d['heartRate'];
+    final temp = d['temperature'];
+    final weight = d['weight'];
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(color: AppColors.card, borderRadius: BorderRadius.circular(14),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)]),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(d['diagnosis'] ?? '—', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-        const SizedBox(height: 4),
-        Text('Дата: ${d['createdAt']?.substring(0, 10) ?? '—'}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+        Row(children: [
+          const Icon(Icons.local_hospital, color: AppColors.primary, size: 18),
+          const SizedBox(width: 8),
+          Expanded(child: Text(d['diagnosis'] ?? '—', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
+          Text(d['createdAt']?.substring(0, 10) ?? '—', style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+        ]),
+        if (bp != null || hr != null || temp != null || weight != null) ...[
+          const SizedBox(height: 8),
+          Wrap(spacing: 12, runSpacing: 4, children: [
+            if (bp != null) _chip(Icons.favorite, '$bp мм', AppColors.danger),
+            if (hr != null) _chip(Icons.monitor_heart, '$hr уд/хв', AppColors.success),
+            if (temp != null) _chip(Icons.thermostat, '$temp °C', AppColors.warning),
+            if (weight != null) _chip(Icons.scale, '$weight кг', AppColors.primary),
+          ]),
+        ],
       ]),
     );
   }
+
+  Widget _chip(IconData icon, String text, Color color) => Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 13, color: color),
+        const SizedBox(width: 3),
+        Text(text, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
+      ]);
 }
 
 // ── Форма виписки рецепту ─────────────────────────────────────────────────
 class _AddPrescriptionSheet extends StatefulWidget {
   final String patientId;
   final PrescriptionModel? prescription;
-  const _AddPrescriptionSheet({required this.patientId, this.prescription});
+  final String prefillMedication;
+  const _AddPrescriptionSheet({required this.patientId, this.prescription, this.prefillMedication = ''});
   @override
   State<_AddPrescriptionSheet> createState() => _AddPrescriptionSheetState();
 }
@@ -738,7 +853,9 @@ class _AddPrescriptionSheetState extends State<_AddPrescriptionSheet> {
   void initState() {
     super.initState();
     _isEditing = widget.prescription != null;
-    _nameCtrl = TextEditingController(text: _isEditing ? widget.prescription!.medicationName : '');
+    _nameCtrl = TextEditingController(
+      text: _isEditing ? widget.prescription!.medicationName : widget.prefillMedication,
+    );
     _dosageCtrl = TextEditingController(text: _isEditing ? widget.prescription!.dosage : '');
     _instCtrl = TextEditingController(text: _isEditing ? widget.prescription!.instruction : '');
   }
@@ -807,45 +924,71 @@ class _AddPrescriptionSheetState extends State<_AddPrescriptionSheet> {
   );
 }
 
-// ── Допоміжні методи для _PatientCardScreenState
+// ── Action buttons (2×2 grid) ─────────────────────────────────────────────
 extension on _PatientCardScreenState {
   Widget _buildActionButtons(BuildContext ctx, dynamic p) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: [
-        _actionIcon(Icons.calendar_month_rounded, 'Запис', AppColors.primary.withValues(alpha: 0.1), () {
-          final appointmentsBloc = ctx.read<AppointmentsBloc>();
-          Navigator.push(ctx, MaterialPageRoute(
-            builder: (_) => BlocProvider.value(
-              value: appointmentsBloc,
-              child: NewAppointmentScreen(patientId: p.id, patientName: p.fullName),
-            ),
-          ));
-        }),
-        _actionIcon(Icons.medication_rounded, 'Рецепт', Colors.pink.withValues(alpha: 0.1), () {
-          _showAddPrescriptionSheet(ctx, p.id);
-        }),
-        _actionIcon(Icons.biotech_rounded, 'Аналіз', Colors.orange.withValues(alpha: 0.1), () {
-          _tabController.animateTo(3); 
-        }),
-      ],
-    );
+    return Column(children: [
+      Row(children: [
+        Expanded(child: _actionCard(
+          icon: Icons.calendar_month_rounded,
+          label: 'Записати\nна прийом',
+          color: const Color(0xFF3B82F6),
+          onTap: () {
+            final bloc = ctx.read<AppointmentsBloc>();
+            Navigator.push(ctx, MaterialPageRoute(
+              builder: (_) => BlocProvider.value(value: bloc,
+                child: NewAppointmentScreen(patientId: p.id, patientName: p.fullName)),
+            ));
+          },
+        )),
+        const SizedBox(width: 12),
+        Expanded(child: _actionCard(
+          icon: Icons.medication_liquid_rounded,
+          label: 'Виписати\nрецепт',
+          color: const Color(0xFFEC4899),
+          onTap: () => _showAddPrescriptionSheet(ctx, p.id),
+        )),
+      ]),
+      const SizedBox(height: 12),
+      Row(children: [
+        Expanded(child: _actionCard(
+          icon: Icons.biotech_rounded,
+          label: 'Додати\nаналіз',
+          color: const Color(0xFFF59E0B),
+          onTap: () => _tabController.animateTo(3),
+        )),
+        const SizedBox(width: 12),
+        Expanded(child: _actionCard(
+          icon: Icons.local_pharmacy_rounded,
+          label: 'Картки\nпрепаратів',
+          color: const Color(0xFF10B981),
+          onTap: () => _tabController.animateTo(2),
+        )),
+      ]),
+    ]);
   }
 
-  Widget _actionIcon(IconData icon, String label, Color bg, VoidCallback onTap) {
+  Widget _actionCard({required IconData icon, required String label, required Color color, required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
-      child: Column(
-        children: [
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: color.withValues(alpha: 0.2), width: 1.5),
+        ),
+        child: Row(children: [
           Container(
-            width: 70, height: 70,
-            decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.primary.withValues(alpha: 0.05))),
-            child: Icon(icon, color: AppColors.primary, size: 32),
+            width: 44, height: 44,
+            decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
+            child: Icon(icon, color: Colors.white, size: 22),
           ),
-          const SizedBox(height: 8),
-          Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.text)),
-        ],
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color, height: 1.3)),
+          ),
+        ]),
       ),
     );
   }

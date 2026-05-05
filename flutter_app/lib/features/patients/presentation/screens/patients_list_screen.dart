@@ -103,7 +103,10 @@ class _PatientsListScreenState extends State<PatientsListScreen> {
 
   Widget _patientCard(BuildContext context, dynamic patient) => GestureDetector(
         onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => BlocProvider.value(value: context.read<PatientsBloc>(), child: PatientCardScreen(patientId: patient.id))),
+          MaterialPageRoute(builder: (_) => BlocProvider(
+            create: (_) => PatientsBloc(),
+            child: PatientCardScreen(patientId: patient.id),
+          )),
         ),
         child: Container(
           padding: const EdgeInsets.all(14),

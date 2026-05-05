@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PharmacyService } from './pharmacy.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -53,5 +53,17 @@ export class PrescriptionsController {
   @ApiOperation({ summary: 'POST /prescriptions — виписати рецепт' })
   create(@Body() dto: Partial<Prescription>) {
     return this.service.createPrescription(dto);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'PATCH /prescriptions/:id — оновити рецепт' })
+  update(@Param('id') id: string, @Body() dto: any) {
+    return this.service.updatePrescription(id, dto);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'DELETE /prescriptions/:id — видалити рецепт' })
+  remove(@Param('id') id: string) {
+    return this.service.deletePrescription(id);
   }
 }
