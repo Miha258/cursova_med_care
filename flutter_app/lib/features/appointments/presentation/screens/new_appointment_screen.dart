@@ -93,19 +93,18 @@ class _NewAppointmentScreenState extends State<NewAppointmentScreen> {
               foregroundColor: Colors.white,
               leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.pop(context)),
               title: const Text('Запис на прийом', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-              expandedHeight: 130,
+              expandedHeight: 110,
               flexibleSpace: FlexibleSpaceBar(
                 background: Container(
                   decoration: const BoxDecoration(gradient: AppColors.primaryGradient),
-                  padding: const EdgeInsets.fromLTRB(20, 70, 20, 16),
+                  padding: const EdgeInsets.fromLTRB(20, 60, 20, 12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      const SizedBox(height: 20),
-                      const Text('Оберіть час візиту', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+                      const Text('Оберіть час візиту', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
                       if (widget.patientName != null)
-                        Text('${widget.patientName} → Лікар', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
+                        Text(widget.patientName!, style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
                     ],
                   ),
                 ),
