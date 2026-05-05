@@ -53,4 +53,32 @@ export class ReportsService {
       .orderBy('total', 'DESC')
       .getRawMany();
   }
+
+  // Зведений фінансовий звіт
+  async getFinancialSummary(from?: string, to?: string) {
+    const qb = this.invoiceRepo.createQueryBuilder('i');
+    if (from) qb.andWhere('i.createdAt >= :from', { from });
+    if (to) qb.andWhere('i.createdAt <= :to', { to });
+
+    const all = await qb
+      .select('i.status', 'status')
+      .addSelect('SUM(i.amount)', 'total')
+      .addSelect('COUNT(*)', 'count')
+      .groupBy('i.status')
+      .getRawMany();
+
+    const totalRevenue = all.find(r => r.status === InvoiceStatus.PAID)?.total ?? 0;
+    const totalPending = all.find(r => r.status === InvoiceStatus.PENDING)?.total ?? 0;
+    const totalCancelled = all.find(r => r.status === InvoiceStatus.CANCELLED)?.total ?? 0;
+
+    return {
+      summary: all,
+      totalRevenue: Number(totalRevenue),
+      totalPending: Number(totalPending),
+      totalCancelled: Number(totalCancelled),
+      collectionRate: Number(totalRevenue) + Number(totalPending) > 0
+        ? Math.round((Number(totalRevenue) / (Number(totalRevenue) + Number(totalPending))) * 100)
+        : 0,
+    };
+  }
 }

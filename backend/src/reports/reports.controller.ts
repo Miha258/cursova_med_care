@@ -27,4 +27,10 @@ export class ReportsController {
   doctors() {
     return this.service.getDoctorWorkload();
   }
+
+  @Get('financial-summary')
+  @ApiOperation({ summary: 'GET /reports/financial-summary — зведений фінансовий звіт (revenue, pending, overdue, collectionRate)' })
+  financialSummary(@Query('from') from?: string, @Query('to') to?: string) {
+    return this.service.getFinancialSummary(from, to);
+  }
 }

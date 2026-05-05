@@ -35,3 +35,23 @@ export class PharmacyController {
     return this.service.updateMedication(id, dto);
   }
 }
+
+@ApiTags('pharmacy')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@Controller('prescriptions')
+export class PrescriptionsController {
+  constructor(private service: PharmacyService) {}
+
+  @Get('patient/:patientId')
+  @ApiOperation({ summary: 'GET /prescriptions/patient/:id — рецепти пацієнта' })
+  byPatient(@Param('patientId') patientId: string) {
+    return this.service.findPrescriptionsByPatient(patientId);
+  }
+
+  @Post()
+  @ApiOperation({ summary: 'POST /prescriptions — виписати рецепт' })
+  create(@Body() dto: Partial<Prescription>) {
+    return this.service.createPrescription(dto);
+  }
+}
