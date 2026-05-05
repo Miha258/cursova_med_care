@@ -160,30 +160,207 @@ class _PatientsListScreenState extends State<PatientsListScreen> {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => const _AddPatientSheet(),
+      builder: (_) => BlocProvider.value(
+        value: context.read<PatientsBloc>(),
+        child: const _AddPatientSheet(),
+      ),
     );
   }
 }
 
-class _AddPatientSheet extends StatelessWidget {
+class _AddPatientSheet extends StatefulWidget {
   const _AddPatientSheet();
   @override
+  State<_AddPatientSheet> createState() => _AddPatientSheetState();
+}
+
+class _AddPatientSheetState extends State<_AddPatientSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _lastNameCtrl = TextEditingController();
+  final _firstNameCtrl = TextEditingController();
+  final _middleNameCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  DateTime? _birthDate;
+  String _gender = 'male';
+  String _bloodGroup = '';
+
+  @override
+  void dispose() {
+    _lastNameCtrl.dispose();
+    _firstNameCtrl.dispose();
+    _middleNameCtrl.dispose();
+    _phoneCtrl.dispose();
+    _emailCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime(1990),
+      firstDate: DateTime(1920),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) setState(() => _birthDate = picked);
+  }
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
+    if (_birthDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Оберіть дату народження')));
+      return;
+    }
+    context.read<PatientsBloc>().add(PatientCreateRequested({
+      'lastName': _lastNameCtrl.text.trim(),
+      'firstName': _firstNameCtrl.text.trim(),
+      'middleName': _middleNameCtrl.text.trim(),
+      'birthDate': _birthDate!.toIso8601String().split('T').first,
+      'gender': _gender,
+      'phone': _phoneCtrl.text.trim(),
+      'email': _emailCtrl.text.trim(),
+      if (_bloodGroup.isNotEmpty) 'bloodGroup': _bloodGroup,
+    }));
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 16, right: 16, top: 16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(width: 36, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 16),
-          const Text('Новий пацієнт', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 16),
-          const Text('Форма реєстрації нового пацієнта.\nPOST /patients → PostgreSQL INSERT', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textSecondary)),
-          const SizedBox(height: 24),
-          ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text('Закрити')),
-          const SizedBox(height: 16),
-        ],
+    return BlocListener<PatientsBloc, PatientsState>(
+      listener: (context, state) {
+        if (state is PatientCreated) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Пацієнта ${state.patient.fullName} додано'), backgroundColor: AppColors.success),
+          );
+        }
+        if (state is PatientsError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(state.message), backgroundColor: AppColors.danger),
+          );
+        }
+      },
+      child: Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 16, right: 16, top: 16),
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(child: Container(width: 36, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)))),
+                const SizedBox(height: 16),
+                const Center(child: Text('Новий пацієнт', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800))),
+                const SizedBox(height: 20),
+                _field(_lastNameCtrl, 'Прізвище', required: true),
+                const SizedBox(height: 12),
+                _field(_firstNameCtrl, "Ім'я", required: true),
+                const SizedBox(height: 12),
+                _field(_middleNameCtrl, 'По батькові'),
+                const SizedBox(height: 12),
+                GestureDetector(
+                  onTap: _pickDate,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppColors.border),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today_outlined, size: 18, color: AppColors.textSecondary),
+                        const SizedBox(width: 10),
+                        Text(
+                          _birthDate == null
+                              ? 'Дата народження *'
+                              : '${_birthDate!.day.toString().padLeft(2, '0')}.${_birthDate!.month.toString().padLeft(2, '0')}.${_birthDate!.year}',
+                          style: TextStyle(color: _birthDate == null ? AppColors.textSecondary : AppColors.text),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Text('Стать:', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                    const SizedBox(width: 12),
+                    _genderChip('male', 'Чоловіча'),
+                    const SizedBox(width: 8),
+                    _genderChip('female', 'Жіноча'),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _field(_phoneCtrl, 'Телефон', hint: '+380XXXXXXXXX', keyboard: TextInputType.phone),
+                const SizedBox(height: 12),
+                _field(_emailCtrl, 'Email', keyboard: TextInputType.emailAddress),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: _bloodGroup.isEmpty ? null : _bloodGroup,
+                  decoration: _inputDecoration('Група крові (необов\'язково)'),
+                  items: ['I(O)+', 'I(O)−', 'II(A)+', 'II(A)−', 'III(B)+', 'III(B)−', 'IV(AB)+', 'IV(AB)−']
+                      .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _bloodGroup = v ?? ''),
+                ),
+                const SizedBox(height: 20),
+                BlocBuilder<PatientsBloc, PatientsState>(
+                  builder: (context, state) {
+                    final loading = state is PatientCreating;
+                    return SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: loading ? null : _submit,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: loading
+                            ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : const Text('Зберегти', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
+
+  Widget _genderChip(String value, String label) => GestureDetector(
+        onTap: () => setState(() => _gender = value),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          decoration: BoxDecoration(
+            color: _gender == value ? AppColors.primary : AppColors.background,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _gender == value ? AppColors.primary : AppColors.border),
+          ),
+          child: Text(label, style: TextStyle(color: _gender == value ? Colors.white : AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+        ),
+      );
+
+  Widget _field(TextEditingController ctrl, String label, {bool required = false, String? hint, TextInputType? keyboard}) =>
+      TextFormField(
+        controller: ctrl,
+        keyboardType: keyboard,
+        decoration: _inputDecoration(required ? '$label *' : label, hint: hint),
+        validator: required ? (v) => (v == null || v.trim().isEmpty) ? "Обов'язкове поле" : null : null,
+      );
+
+  InputDecoration _inputDecoration(String label, {String? hint}) => InputDecoration(
+        labelText: label,
+        hintText: hint,
+        labelStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.border)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.border)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      );
 }

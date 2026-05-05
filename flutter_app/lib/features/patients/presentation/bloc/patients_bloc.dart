@@ -19,6 +19,11 @@ class PatientLoadRequested extends PatientsEvent {
   const PatientLoadRequested(this.id);
   @override List<Object?> get props => [id];
 }
+class PatientCreateRequested extends PatientsEvent {
+  final Map<String, dynamic> data;
+  const PatientCreateRequested(this.data);
+  @override List<Object?> get props => [data];
+}
 
 // States
 abstract class PatientsState extends Equatable {
@@ -27,6 +32,12 @@ abstract class PatientsState extends Equatable {
 }
 class PatientsInitial extends PatientsState {}
 class PatientsLoading extends PatientsState {}
+class PatientCreating extends PatientsState {}
+class PatientCreated extends PatientsState {
+  final PatientModel patient;
+  const PatientCreated(this.patient);
+  @override List<Object?> get props => [patient];
+}
 class PatientsLoaded extends PatientsState {
   final List<PatientModel> patients;
   const PatientsLoaded(this.patients);
@@ -53,6 +64,7 @@ class PatientsBloc extends Bloc<PatientsEvent, PatientsState> {
     on<PatientsLoadRequested>(_onLoad);
     on<PatientsSearchRequested>(_onSearch);
     on<PatientLoadRequested>(_onLoadOne);
+    on<PatientCreateRequested>(_onCreate);
   }
 
   Future<void> _onLoad(PatientsLoadRequested event, Emitter<PatientsState> emit) async {
@@ -82,6 +94,18 @@ class PatientsBloc extends Bloc<PatientsEvent, PatientsState> {
       emit(PatientDetailLoaded(patient));
     } catch (e) {
       emit(PatientsError('Пацієнта не знайдено'));
+    }
+  }
+
+  Future<void> _onCreate(PatientCreateRequested event, Emitter<PatientsState> emit) async {
+    emit(PatientCreating());
+    try {
+      final patient = await _repository.create(event.data);
+      emit(PatientCreated(patient));
+      final patients = await _repository.getAll();
+      emit(PatientsLoaded(patients));
+    } catch (e) {
+      emit(PatientsError('Помилка створення пацієнта: $e'));
     }
   }
 }
