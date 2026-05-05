@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../bloc/appointments_bloc.dart';
+import '../../data/models/appointment_model.dart';
+
 
 // Рис. 2.4б — Запис на прийом
 class NewAppointmentScreen extends StatefulWidget {

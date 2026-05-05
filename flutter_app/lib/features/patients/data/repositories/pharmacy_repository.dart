@@ -1,4 +1,4 @@
-import '../../../core/network/api_service.dart';
+import '../../../../core/network/api_service.dart';
 import '../models/prescription_model.dart';
 
 class PharmacyRepository {
@@ -19,6 +19,22 @@ class PharmacyRepository {
       return PrescriptionModel.fromJson(response.data);
     } catch (e) {
       throw Exception('Помилка створення рецепта: $e');
+    }
+  }
+  Future<PrescriptionModel> updatePrescription(String id, Map<String, dynamic> data) async {
+    try {
+      final response = await _api.patch('/prescriptions/$id', data: data);
+      return PrescriptionModel.fromJson(response.data);
+    } catch (e) {
+      throw Exception('Помилка оновлення рецепта: $e');
+    }
+  }
+
+  Future<void> deletePrescription(String id) async {
+    try {
+      await _api.delete('/prescriptions/$id');
+    } catch (e) {
+      throw Exception('Помилка видалення рецепта: $e');
     }
   }
 }

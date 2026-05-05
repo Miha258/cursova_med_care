@@ -1,9 +1,14 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/network/api_service.dart';
+import '../bloc/patients_bloc.dart';
 import '../../data/models/patient_model.dart';
 import '../../data/models/prescription_model.dart';
-import '../../data/repositories/patients_repository.dart';
 import '../../../appointments/presentation/screens/new_appointment_screen.dart';
 import '../../../appointments/data/repositories/appointments_repository.dart';
 import '../../../appointments/presentation/bloc/appointments_bloc.dart';
+
 
 class PatientCardScreen extends StatefulWidget {
   final String patientId;
@@ -20,7 +25,9 @@ class _PatientCardScreenState extends State<PatientCardScreen> with SingleTicker
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
-    context.read<PatientsBloc>().add(PatientLoadRequested(widget.patientId));
+    final patientsBloc = context.read<PatientsBloc>();
+    patientsBloc.add(PatientLoadRequested(widget.patientId));
+    patientsBloc.add(PatientPrescriptionsRequested(widget.patientId));
   }
 
   @override
@@ -54,7 +61,7 @@ class _PatientCardScreenState extends State<PatientCardScreen> with SingleTicker
                 headerSliverBuilder: (context, _) => [
                   SliverAppBar(
                     pinned: true,
-                    expandedHeight: 175,
+                    expandedHeight: 220,
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.pop(context)),
@@ -62,7 +69,7 @@ class _PatientCardScreenState extends State<PatientCardScreen> with SingleTicker
                     flexibleSpace: FlexibleSpaceBar(
                       background: Container(
                         decoration: const BoxDecoration(gradient: AppColors.primaryGradient),
-                        padding: const EdgeInsets.fromLTRB(20, 80, 20, 0),
+                        padding: const EdgeInsets.fromLTRB(20, 70, 20, 20),
                         child: Row(
                           children: [
                             Container(
@@ -137,6 +144,8 @@ class _PatientCardScreenState extends State<PatientCardScreen> with SingleTicker
   Widget _buildCardTab(dynamic p) => SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(children: [
+          _buildActionButtons(context, p),
+          const SizedBox(height: 16),
           _sectionCard(title: 'Особисті дані', children: [
             _infoRow('Страховий поліс', p.insuranceNo.isNotEmpty ? p.insuranceNo : '—'),
             _infoRow('Телефон', p.phone.isNotEmpty ? p.phone : '—'),
@@ -223,14 +232,13 @@ class _PatientCardScreenState extends State<PatientCardScreen> with SingleTicker
 
   // ── Вкладка "Рецепти" ────────────────────────────────────────────────────
   Widget _buildPrescriptionsTab(BuildContext ctx, String patientId) {
-    context.read<PatientsBloc>().add(PatientPrescriptionsRequested(patientId));
     return BlocBuilder<PatientsBloc, PatientsState>(
-      buildWhen: (prev, curr) => curr is PatientPrescriptionsLoaded || curr is PatientsLoading || curr is PatientsError,
+      buildWhen: (prev, curr) => curr is PatientDetailLoaded || curr is PatientsLoading,
       builder: (context, state) {
         if (state is PatientsLoading) return const Center(child: CircularProgressIndicator(color: AppColors.primary));
         
         List<PrescriptionModel> prescriptions = [];
-        if (state is PatientPrescriptionsLoaded) {
+        if (state is PatientDetailLoaded) {
           prescriptions = state.prescriptions;
         }
 
@@ -264,21 +272,35 @@ class _PatientCardScreenState extends State<PatientCardScreen> with SingleTicker
       decoration: BoxDecoration(color: AppColors.card, borderRadius: BorderRadius.circular(14),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)]),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          const Icon(Icons.medication, color: AppColors.primary, size: 20),
-          const SizedBox(width: 8),
-          Expanded(child: Text(rx.medicationName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700))),
-          Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-              child: Text(statusLabel, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w700))),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Row(children: [
+            const Icon(Icons.medication, color: AppColors.primary, size: 20),
+            const SizedBox(width: 8),
+            Text(rx.medicationName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+          ]),
+          Row(children: [
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.primary),
+              onPressed: () => _showAddPrescriptionSheet(context, rx.patientId, prescription: rx),
+              constraints: const BoxConstraints(),
+              padding: EdgeInsets.zero,
+            ),
+            const SizedBox(width: 12),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.danger),
+              onPressed: () => _showDeletePrescriptionDialog(rx),
+              constraints: const BoxConstraints(),
+              padding: EdgeInsets.zero,
+            ),
+          ]),
         ]),
         const SizedBox(height: 8),
         Row(children: [
           _rxChip(Icons.straighten, rx.dosage),
           const SizedBox(width: 12),
-          const Icon(Icons.calendar_today, size: 13, color: AppColors.textSecondary),
-          const SizedBox(width: 4),
-          Text(rx.createdAt.substring(0, 10), style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+          Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+              child: Text(statusLabel, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w700))),
         ]),
         if (rx.instruction.isNotEmpty) ...[
           const SizedBox(height: 8),
@@ -288,20 +310,40 @@ class _PatientCardScreenState extends State<PatientCardScreen> with SingleTicker
     );
   }
 
+  void _showDeletePrescriptionDialog(PrescriptionModel rx) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Видалити рецепт?'),
+        content: const Text('Цю дію неможливо буде скасувати.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Скасувати')),
+          TextButton(
+            onPressed: () {
+              context.read<PatientsBloc>().add(PatientPrescriptionDeleteRequested(rx.id, rx.patientId));
+              Navigator.pop(ctx);
+            },
+            child: const Text('Видалити', style: TextStyle(color: AppColors.danger)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _rxChip(IconData icon, String text) => Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(icon, size: 13, color: AppColors.textSecondary),
         const SizedBox(width: 3),
         Text(text, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
       ]);
 
-  void _showAddPrescriptionSheet(BuildContext ctx, String patientId) {
+  void _showAddPrescriptionSheet(BuildContext ctx, String patientId, {PrescriptionModel? prescription}) {
     showModalBottomSheet(
       context: ctx,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => BlocProvider.value(
         value: ctx.read<PatientsBloc>(),
-        child: _AddPrescriptionSheet(patientId: patientId),
+        child: _AddPrescriptionSheet(patientId: patientId, prescription: prescription),
       ),
     );
   }
@@ -379,16 +421,27 @@ class _PatientCardScreenState extends State<PatientCardScreen> with SingleTicker
 // ── Форма виписки рецепту ─────────────────────────────────────────────────
 class _AddPrescriptionSheet extends StatefulWidget {
   final String patientId;
-  const _AddPrescriptionSheet({required this.patientId});
+  final PrescriptionModel? prescription;
+  const _AddPrescriptionSheet({required this.patientId, this.prescription});
   @override
   State<_AddPrescriptionSheet> createState() => _AddPrescriptionSheetState();
 }
 
 class _AddPrescriptionSheetState extends State<_AddPrescriptionSheet> {
   final _formKey = GlobalKey<FormState>();
-  final _nameCtrl = TextEditingController();
-  final _dosageCtrl = TextEditingController();
-  final _instCtrl = TextEditingController();
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _dosageCtrl;
+  late final TextEditingController _instCtrl;
+  bool _isEditing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _isEditing = widget.prescription != null;
+    _nameCtrl = TextEditingController(text: _isEditing ? widget.prescription!.medicationName : '');
+    _dosageCtrl = TextEditingController(text: _isEditing ? widget.prescription!.dosage : '');
+    _instCtrl = TextEditingController(text: _isEditing ? widget.prescription!.instruction : '');
+  }
 
   @override
   void dispose() {
@@ -400,15 +453,20 @@ class _AddPrescriptionSheetState extends State<_AddPrescriptionSheet> {
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
-    context.read<PatientsBloc>().add(PatientPrescriptionCreateRequested({
+    final data = {
       'patientId': widget.patientId,
       'medicationName': _nameCtrl.text.trim(),
       'dosage': _dosageCtrl.text.trim(),
       'instruction': _instCtrl.text.trim(),
-    }));
+    };
+    if (_isEditing) {
+      context.read<PatientsBloc>().add(PatientPrescriptionUpdateRequested(widget.prescription!.id, data));
+    } else {
+      context.read<PatientsBloc>().add(PatientPrescriptionCreateRequested(data));
+    }
     Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('✅ Рецепт успішно створено'), backgroundColor: AppColors.success));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(_isEditing ? '✅ Рецепт оновлено' : '✅ Рецепт виписано'), backgroundColor: AppColors.success));
   }
 
   @override
@@ -937,4 +995,39 @@ class _AddDiagnosisSheetState extends State<_AddDiagnosisSheet> {
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       );
+
+  Widget _buildActionButtons(BuildContext ctx, dynamic p) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        _actionIcon(Icons.calendar_month_rounded, 'Запис', AppColors.primary.withValues(alpha: 0.1), () {
+          Navigator.push(ctx, MaterialPageRoute(builder: (_) => NewAppointmentScreen(patientId: p.id, patientName: p.fullName)));
+        }),
+        _actionIcon(Icons.medication_rounded, 'Рецепт', Colors.pink.withValues(alpha: 0.1), () {
+          _showAddPrescriptionSheet(ctx, p.id);
+        }),
+        _actionIcon(Icons.biotech_rounded, 'Аналіз', Colors.orange.withValues(alpha: 0.1), () {
+          // Можна додати дію пізніше
+        }),
+      ],
+    );
+  }
+
+  Widget _actionIcon(IconData icon, String label, Color bg, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 70, height: 70,
+            decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.05))),
+            child: Icon(icon, color: AppColors.primary, size: 32),
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+        ],
+      ),
+    );
+  }
 }

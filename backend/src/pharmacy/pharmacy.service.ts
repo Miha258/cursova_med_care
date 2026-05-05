@@ -40,11 +40,23 @@ export class PharmacyService {
   }
 
   async createPrescription(dto: any) {
-    // Якщо дані приходять з нашої нової форми (фронтенд)
     if (dto.medicationName) {
+      let doctorId = dto.doctorId;
+      
+      if (!doctorId) {
+        // Якщо doctorId не передано, беремо першого лікаря з бази
+        // Це гарантує проходження Foreign Key constraint
+        const doctor = await this.prescriptionRepo.query('SELECT id FROM doctors LIMIT 1');
+        if (doctor && doctor.length > 0) {
+          doctorId = doctor[0].id;
+        } else {
+          doctorId = 'f197d12c-80bc-4480-aa24-dc41f27b1f91'; // Останній фолбек
+        }
+      }
+
       const data: any = {
         patientId: dto.patientId,
-        doctorId: dto.doctorId || 'f197d12c-80bc-4480-aa24-dc41f27b1f91',
+        doctorId: doctorId,
         items: [{
           name: dto.medicationName,
           dosage: dto.dosage,
@@ -52,10 +64,15 @@ export class PharmacyService {
         }],
         status: dto.status || 'active',
       };
-      const rx = this.prescriptionRepo.create(data);
-      return this.prescriptionRepo.save(rx);
+      
+      try {
+        const rx = this.prescriptionRepo.create(data);
+        return await this.prescriptionRepo.save(rx);
+      } catch (error) {
+        console.error('Prescription Save Error:', error.message);
+        throw error;
+      }
     }
-    // Старий формат
     const rx = this.prescriptionRepo.create(dto as Partial<Prescription>);
     return this.prescriptionRepo.save(rx);
   }

@@ -36,6 +36,18 @@ class PatientPrescriptionCreateRequested extends PatientsEvent {
   const PatientPrescriptionCreateRequested(this.data);
   @override List<Object?> get props => [data];
 }
+class PatientPrescriptionUpdateRequested extends PatientsEvent {
+  final String id;
+  final Map<String, dynamic> data;
+  const PatientPrescriptionUpdateRequested(this.id, this.data);
+  @override List<Object?> get props => [id, data];
+}
+class PatientPrescriptionDeleteRequested extends PatientsEvent {
+  final String id;
+  final String patientId;
+  const PatientPrescriptionDeleteRequested(this.id, this.patientId);
+  @override List<Object?> get props => [id, patientId];
+}
 
 // States
 abstract class PatientsState extends Equatable {
@@ -57,8 +69,9 @@ class PatientsLoaded extends PatientsState {
 }
 class PatientDetailLoaded extends PatientsState {
   final PatientModel patient;
-  const PatientDetailLoaded(this.patient);
-  @override List<Object?> get props => [patient];
+  final List<PrescriptionModel> prescriptions;
+  const PatientDetailLoaded(this.patient, {this.prescriptions = const []});
+  @override List<Object?> get props => [patient, prescriptions];
 }
 class PatientsError extends PatientsState {
   final String message;
@@ -90,6 +103,8 @@ class PatientsBloc extends Bloc<PatientsEvent, PatientsState> {
     on<PatientCreateRequested>(_onCreate);
     on<PatientPrescriptionsRequested>(_onLoadPrescriptions);
     on<PatientPrescriptionCreateRequested>(_onCreatePrescription);
+    on<PatientPrescriptionUpdateRequested>(_onUpdatePrescription);
+    on<PatientPrescriptionDeleteRequested>(_onDeletePrescription);
   }
 
   Future<void> _onLoad(PatientsLoadRequested event, Emitter<PatientsState> emit) async {
@@ -135,11 +150,15 @@ class PatientsBloc extends Bloc<PatientsEvent, PatientsState> {
   }
 
   Future<void> _onLoadPrescriptions(PatientPrescriptionsRequested event, Emitter<PatientsState> emit) async {
-    try {
-      final prescriptions = await _pharmacy.getPrescriptions(event.patientId);
-      emit(PatientPrescriptionsLoaded(prescriptions));
-    } catch (e) {
-      emit(PatientsError(e.toString()));
+    final currentState = state;
+    if (currentState is PatientDetailLoaded) {
+      try {
+        final prescriptions = await _pharmacy.getPrescriptions(event.patientId);
+        emit(PatientDetailLoaded(currentState.patient, prescriptions: prescriptions));
+      } catch (e) {
+        // Не видаємо помилку на весь екран, щоб не ховати картку пацієнта
+        print('Error loading prescriptions: $e');
+      }
     }
   }
 
@@ -148,6 +167,24 @@ class PatientsBloc extends Bloc<PatientsEvent, PatientsState> {
       final p = await _pharmacy.createPrescription(event.data);
       emit(PatientPrescriptionCreated(p));
       add(PatientPrescriptionsRequested(p.patientId));
+    } catch (e) {
+      emit(PatientsError(e.toString()));
+    }
+  }
+
+  Future<void> _onUpdatePrescription(PatientPrescriptionUpdateRequested event, Emitter<PatientsState> emit) async {
+    try {
+      final p = await _pharmacy.updatePrescription(event.id, event.data);
+      add(PatientPrescriptionsRequested(p.patientId));
+    } catch (e) {
+      emit(PatientsError(e.toString()));
+    }
+  }
+
+  Future<void> _onDeletePrescription(PatientPrescriptionDeleteRequested event, Emitter<PatientsState> emit) async {
+    try {
+      await _pharmacy.deletePrescription(event.id);
+      add(PatientPrescriptionsRequested(event.patientId));
     } catch (e) {
       emit(PatientsError(e.toString()));
     }
