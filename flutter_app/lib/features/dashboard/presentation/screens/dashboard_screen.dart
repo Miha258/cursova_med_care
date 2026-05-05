@@ -4,6 +4,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_event.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
+// ignore_for_file: unused_import
 import '../bloc/dashboard_bloc.dart';
 import '../../../../shared/widgets/bottom_nav_bar.dart';
 
@@ -69,8 +70,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
               IconButton(
-                onPressed: () => context.read<AuthBloc>().add(AuthLogoutRequested()),
-                icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+                onPressed: () => _confirmLogout(context),
+                icon: const Icon(Icons.logout, color: Colors.white),
+                tooltip: 'Вийти',
                 style: IconButton.styleFrom(
                   backgroundColor: Colors.white.withOpacity(0.18),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -105,6 +107,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: List.generate(4, (_) => _statCard('—', '...')),
               );
             },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmLogout(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Вийти з акаунту?', style: TextStyle(fontWeight: FontWeight.w800)),
+        content: const Text('Ви будете перенаправлені на екран входу.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Скасувати', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              context.read<AuthBloc>().add(AuthLogoutRequested());
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            child: const Text('Вийти'),
           ),
         ],
       ),
