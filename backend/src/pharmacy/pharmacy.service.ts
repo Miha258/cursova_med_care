@@ -43,14 +43,17 @@ export class PharmacyService {
     if (dto.medicationName) {
       let doctorId = dto.doctorId;
       
+      // Логуємо вхідні дані для діагностики
+      console.log(`[PharmacyService] Attempting to create prescription for patient ${dto.patientId}`);
+
       if (!doctorId) {
-        // Якщо doctorId не передано, беремо першого лікаря з бази
-        // Це гарантує проходження Foreign Key constraint
-        const doctor = await this.prescriptionRepo.query('SELECT id FROM doctors LIMIT 1');
-        if (doctor && doctor.length > 0) {
-          doctorId = doctor[0].id;
+        const doctors = await this.prescriptionRepo.query('SELECT id FROM doctors LIMIT 1');
+        if (doctors && doctors.length > 0) {
+          doctorId = doctors[0].id;
+          console.log(`[PharmacyService] No doctorId provided, using fallback from DB: ${doctorId}`);
         } else {
-          doctorId = 'f197d12c-80bc-4480-aa24-dc41f27b1f91'; // Останній фолбек
+          console.error('[PharmacyService] CRITICAL: No doctors found in database!');
+          throw new Error('У системі не знайдено жодного лікаря. Рецепт не може бути створений.');
         }
       }
 
@@ -66,10 +69,12 @@ export class PharmacyService {
       };
       
       try {
+        console.log('[PharmacyService] Final data for save:', JSON.stringify(data));
         const rx = this.prescriptionRepo.create(data);
         return await this.prescriptionRepo.save(rx);
       } catch (error) {
-        console.error('Prescription Save Error:', error.message);
+        console.error(`[PharmacyService] Save Failed. DoctorId: ${doctorId}, PatientId: ${dto.patientId}`);
+        console.error('[PharmacyService] Database Error:', error.message);
         throw error;
       }
     }

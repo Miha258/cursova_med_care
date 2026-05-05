@@ -55,10 +55,11 @@ class _PatientCardScreenState extends State<PatientCardScreen> with SingleTicker
           }
           if (state is PatientDetailLoaded) {
             final p = state.patient;
-            return Scaffold(
-              backgroundColor: AppColors.background,
-              body: NestedScrollView(
-                headerSliverBuilder: (context, _) => [
+            return Builder(
+              builder: (ctx) => Scaffold(
+                backgroundColor: AppColors.background,
+                body: NestedScrollView(
+                  headerSliverBuilder: (ctx, _) => [
                   SliverAppBar(
                     pinned: true,
                     expandedHeight: 220,
@@ -115,11 +116,11 @@ class _PatientCardScreenState extends State<PatientCardScreen> with SingleTicker
                 body: TabBarView(
                   controller: _tabController,
                   children: [
-                    _buildCardTab(p),
-                    _buildAppointmentsTab(context, p.id, p.fullName),
-                    _buildPrescriptionsTab(context, p.id),
+                    _buildCardTab(ctx, p),
+                    _buildAppointmentsTab(ctx, p.id, p.fullName),
+                    _buildPrescriptionsTab(ctx, p.id),
                     _LabTestsTab(patientId: p.id),
-                    _buildDiagnosesTab(context, p.id),
+                    _buildDiagnosesTab(ctx, p.id),
                   ],
                 ),
               ),
@@ -141,10 +142,10 @@ class _PatientCardScreenState extends State<PatientCardScreen> with SingleTicker
       );
 
   // ── Вкладка "Картка" ─────────────────────────────────────────────────────
-  Widget _buildCardTab(dynamic p) => SingleChildScrollView(
+  Widget _buildCardTab(BuildContext ctx, dynamic p) => SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(children: [
-          _buildActionButtons(context, p),
+          _buildActionButtons(ctx, p),
           const SizedBox(height: 16),
           _sectionCard(title: 'Особисті дані', children: [
             _infoRow('Страховий поліс', p.insuranceNo.isNotEmpty ? p.insuranceNo : '—'),
@@ -995,19 +996,28 @@ class _AddDiagnosisSheetState extends State<_AddDiagnosisSheet> {
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       );
+}
 
+// ── Допоміжні методи для _PatientCardScreenState (якщо вони були там потрібні)
+extension on _PatientCardScreenState {
   Widget _buildActionButtons(BuildContext ctx, dynamic p) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
         _actionIcon(Icons.calendar_month_rounded, 'Запис', AppColors.primary.withValues(alpha: 0.1), () {
-          Navigator.push(ctx, MaterialPageRoute(builder: (_) => NewAppointmentScreen(patientId: p.id, patientName: p.fullName)));
+          final appointmentsBloc = ctx.read<AppointmentsBloc>();
+          Navigator.push(ctx, MaterialPageRoute(
+            builder: (_) => BlocProvider.value(
+              value: appointmentsBloc,
+              child: NewAppointmentScreen(patientId: p.id, patientName: p.fullName),
+            ),
+          ));
         }),
         _actionIcon(Icons.medication_rounded, 'Рецепт', Colors.pink.withValues(alpha: 0.1), () {
           _showAddPrescriptionSheet(ctx, p.id);
         }),
         _actionIcon(Icons.biotech_rounded, 'Аналіз', Colors.orange.withValues(alpha: 0.1), () {
-          // Можна додати дію пізніше
+          _tabController.animateTo(3); 
         }),
       ],
     );
@@ -1025,7 +1035,7 @@ class _AddDiagnosisSheetState extends State<_AddDiagnosisSheet> {
             child: Icon(icon, color: AppColors.primary, size: 32),
           ),
           const SizedBox(height: 8),
-          Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+          Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.text)),
         ],
       ),
     );
