@@ -1,0 +1,80 @@
+version: '3.8'
+
+# MedCare CRM — Docker Compose
+# Контейнери: nestjs-api (3000), postgres (5432), redis (6379)
+# Запуск: docker compose up -d
+# Seed: docker compose exec api npm run seed
+
+services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: medcare-nestjs-api
+    ports:
+      - "3001:3001"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: medcare
+      JWT_SECRET: medcare-super-secret-jwt-key-change-in-production
+      JWT_EXPIRES_IN: 7d
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      PORT: 3001
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - medcare-network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: medcare-postgres
+    # Порт не публікується назовні — NestJS з'єднується через внутрішню мережу Docker
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: medcare
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/src/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - medcare-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: medcare-redis
+    # Порт не публікується назовні — NestJS з'єднується через внутрішню мережу Docker
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - medcare-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  medcare-network:
+    driver: bridge
