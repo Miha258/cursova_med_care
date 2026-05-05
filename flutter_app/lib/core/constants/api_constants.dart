@@ -7,10 +7,8 @@ class ApiConstants {
   // localhost — для веб-браузера на тому ж Mac
   // 192.168.19.103 — для фізичного телефону в тій самій Wi-Fi мережі
   static String get baseUrl {
-    if (kIsWeb) return 'http://localhost:3001/api';
-    // Твій актуальний IP: 192.168.19.103
-    debugPrint('Using baseUrl: http://192.168.19.103:3001/api');
-    return 'http://192.168.19.103:3001/api';
+    // Твій реальний сервер
+    return 'http://45.12.111.55:3001/api';
   }
 
   // Auth endpoints
