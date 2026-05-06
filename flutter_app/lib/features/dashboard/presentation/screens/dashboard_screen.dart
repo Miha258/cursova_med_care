@@ -171,8 +171,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final actions = [
       _QuickAction(icon: Icons.person_add_outlined, label: 'Новий\nпацієнт', color: const Color(0xFFE3F2FD), navIndex: 2),
       _QuickAction(icon: Icons.calendar_today_outlined, label: 'Запис', color: const Color(0xFFFFF3E0), navIndex: 1),
-      _QuickAction(icon: Icons.medication_outlined, label: 'Рецепт', color: const Color(0xFFFCE4EC), navIndex: null),
-      _QuickAction(icon: Icons.folder_outlined, label: 'Картка', color: const Color(0xFFE8F5E9), navIndex: 2),
+      _QuickAction(icon: Icons.medication_outlined, label: 'Препарати', color: const Color(0xFFFCE4EC), navIndex: 3),
+      _QuickAction(icon: Icons.folder_outlined, label: 'Картки', color: const Color(0xFFE8F5E9), navIndex: 2),
     ];
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 6),

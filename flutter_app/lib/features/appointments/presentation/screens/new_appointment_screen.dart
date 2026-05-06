@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/network/api_service.dart';
 import '../bloc/appointments_bloc.dart';
 import '../../data/models/appointment_model.dart';
-
 
 // Рис. 2.4б — Запис на прийом
 class NewAppointmentScreen extends StatefulWidget {
@@ -22,6 +22,14 @@ class _NewAppointmentScreenState extends State<NewAppointmentScreen> {
   String _selectedReason = 'repeat';
   DoctorInfo? _selectedDoctor;
 
+  // patient picker (used when screen opened without patientId)
+  String? _pickedPatientId;
+  String? _pickedPatientName;
+  List<Map<String, dynamic>> _patients = [];
+  bool _patientsLoading = false;
+
+  String get _effectivePatientId => widget.patientId ?? _pickedPatientId ?? '';
+
   final _reasons = [
     ('repeat', 'Повторний прийом'),
     ('primary', 'Первинна консультація'),
@@ -33,6 +41,18 @@ class _NewAppointmentScreenState extends State<NewAppointmentScreen> {
   void initState() {
     super.initState();
     context.read<AppointmentsBloc>().add(AppointmentDoctorsRequested());
+    if (widget.patientId == null) _loadPatients();
+  }
+
+  Future<void> _loadPatients() async {
+    setState(() => _patientsLoading = true);
+    try {
+      final r = await ApiService.instance.get('/patients');
+      final list = (r.data as List).cast<Map<String, dynamic>>();
+      if (mounted) setState(() { _patients = list; _patientsLoading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _patientsLoading = false);
+    }
   }
 
   String _formatDate(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -52,7 +72,11 @@ class _NewAppointmentScreenState extends State<NewAppointmentScreen> {
   }
 
   void _confirm() {
-    if (_selectedSlot == null || _selectedDoctor == null) {
+    if (_effectivePatientId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Оберіть пацієнта'), backgroundColor: AppColors.warning));
+      return;
+    }
+    if (_selectedDoctor == null || _selectedSlot == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Оберіть лікаря, дату та час'), backgroundColor: AppColors.warning));
       return;
     }
@@ -61,7 +85,7 @@ class _NewAppointmentScreenState extends State<NewAppointmentScreen> {
     final endTime = startTime.add(const Duration(minutes: 30));
 
     context.read<AppointmentsBloc>().add(AppointmentCreateRequested({
-      'patientId': widget.patientId ?? '',
+      'patientId': _effectivePatientId,
       'doctorId': _selectedDoctor!.id,
       'startTime': startTime.toIso8601String(),
       'endTime': endTime.toIso8601String(),
@@ -114,6 +138,11 @@ class _NewAppointmentScreenState extends State<NewAppointmentScreen> {
               padding: const EdgeInsets.all(16),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
+                  // Patient selector (only when not pre-filled)
+                  if (widget.patientId == null) ...[
+                    _buildPatientSelector(),
+                    const SizedBox(height: 12),
+                  ],
                   // Doctor selector
                   _buildDoctorSelector(),
                   const SizedBox(height: 12),
@@ -144,6 +173,56 @@ class _NewAppointmentScreenState extends State<NewAppointmentScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPatientSelector() => GestureDetector(
+        onTap: () => _showPatientPicker(),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)],
+          ),
+          child: Row(
+            children: [
+              Container(width: 40, height: 40, decoration: BoxDecoration(color: const Color(0xFFE3F2FD), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.person, color: AppColors.primary, size: 20)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _pickedPatientName != null
+                    ? Text(_pickedPatientName!, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text))
+                    : Text(_patientsLoading ? 'Завантаження...' : 'Оберіть пацієнта', style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+              ),
+              const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+            ],
+          ),
+        ),
+      );
+
+  void _showPatientPicker() {
+    if (_patients.isEmpty) return;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: _patients.length,
+        separatorBuilder: (_, __) => const Divider(),
+        itemBuilder: (_, i) {
+          final p = _patients[i];
+          final name = '${p['lastName'] ?? ''} ${p['firstName'] ?? ''}'.trim();
+          return ListTile(
+            leading: const Icon(Icons.person, color: AppColors.primary),
+            title: Text(name, style: const TextStyle(fontWeight: FontWeight.w700)),
+            subtitle: Text(p['phone'] ?? ''),
+            onTap: () {
+              setState(() { _pickedPatientId = p['id'] as String; _pickedPatientName = name; });
+              Navigator.pop(context);
+            },
+          );
+        },
       ),
     );
   }

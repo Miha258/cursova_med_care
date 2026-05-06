@@ -15,6 +15,7 @@ import 'features/patients/presentation/screens/patients_list_screen.dart';
 import 'features/appointments/presentation/bloc/appointments_bloc.dart';
 import 'features/appointments/presentation/screens/appointments_screen.dart';
 import 'features/appointments/data/repositories/appointments_repository.dart';
+import 'features/pharmacy/presentation/screens/pharmacy_screen.dart';
 
 class MedCareApp extends StatelessWidget {
   const MedCareApp({super.key});
@@ -82,6 +83,7 @@ class _HomeShellState extends State<HomeShell> {
           DashboardScreen(onNavigate: _onNavigate),
           AppointmentsScreen(onNavigate: _onNavigate),
           PatientsListScreen(onNavigate: _onNavigate),
+          PharmacyScreen(onNavigate: _onNavigate),
         ],
       ),
     );
