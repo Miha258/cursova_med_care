@@ -18,6 +18,7 @@ class PatientCardScreen extends StatefulWidget {
 class _PatientCardScreenState extends State<PatientCardScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _tabs = ['Картки', 'Прийоми', 'Рецепти', 'Аналізи', 'Діагнози'];
+  Map<String, dynamic>? _latestRecord;
 
   @override
   void initState() {
@@ -26,6 +27,17 @@ class _PatientCardScreenState extends State<PatientCardScreen> with SingleTicker
     final patientsBloc = context.read<PatientsBloc>();
     patientsBloc.add(PatientLoadRequested(widget.patientId));
     patientsBloc.add(PatientPrescriptionsRequested(widget.patientId));
+    _loadLatestRecord();
+  }
+
+  Future<void> _loadLatestRecord() async {
+    try {
+      final r = await ApiService.instance.get('/medical-records', queryParameters: {'patientId': widget.patientId});
+      final list = List<Map<String, dynamic>>.from(r.data);
+      if (list.isNotEmpty && mounted) {
+        setState(() => _latestRecord = list.last);
+      }
+    } catch (_) {}
   }
 
   @override
@@ -162,8 +174,8 @@ class _PatientCardScreenState extends State<PatientCardScreen> with SingleTicker
               shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
               crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 2,
               children: [
-                _vitalCard('—', 'мм рт.ст.', 'Тиск', AppColors.danger),
-                _vitalCard('—', 'уд/хв', 'Пульс', AppColors.success),
+                _vitalCard(_latestRecord?['bloodPressure'] ?? '—', 'мм рт.ст.', 'Тиск', AppColors.danger),
+                _vitalCard(_latestRecord?['heartRate']?.toString() ?? '—', 'уд/хв', 'Пульс', AppColors.success),
               ],
             ),
           ]),
@@ -962,7 +974,7 @@ class _DiagnosesTabState extends State<_DiagnosesTab> {
 
   Future<void> _load() async {
     try {
-      final r = await ApiService.instance.get('/medical-records/patient/${widget.patientId}');
+      final r = await ApiService.instance.get('/medical-records', queryParameters: {'patientId': widget.patientId});
       if (mounted) setState(() { _diagnoses = List<Map<String, dynamic>>.from(r.data); _loading = false; });
     } catch (_) {
       if (mounted) setState(() => _loading = false);
