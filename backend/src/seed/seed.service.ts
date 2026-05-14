@@ -8,7 +8,7 @@ import { Patient } from '../patients/entities/patient.entity';
 import { Appointment, AppointmentStatus, AppointmentReason } from '../appointments/entities/appointment.entity';
 import { MedicalRecord } from '../medical-records/entities/medical-record.entity';
 import { Medication } from '../pharmacy/entities/medication.entity';
-import { Prescription } from '../pharmacy/entities/prescription.entity';
+import { Prescription, PrescriptionStatus } from '../pharmacy/entities/prescription.entity';
 import { Invoice, InvoiceStatus } from '../finance/entities/invoice.entity';
 import { Ward } from '../wards/entities/ward.entity';
 import { LabTest, LabTestStatus } from '../lab-tests/entities/lab-test.entity';
@@ -126,16 +126,16 @@ export class SeedService implements OnModuleInit {
 
     // Prescriptions
     await this.prescriptionRepo.save([
-      this.prescriptionRepo.create({ patientId: patients[0].id, doctorId: doctors[1].id, items: [{ name: 'Амлодипін 5мг',      dosage: '1 таб.',   frequency: '1 р/день', duration: '30 днів',  instruction: 'Вранці до їжі'  }], status: 'active' }),
-      this.prescriptionRepo.create({ patientId: patients[0].id, doctorId: doctors[1].id, items: [{ name: 'Лозартан 50мг',      dosage: '1 таб.',   frequency: '1 р/день', duration: '30 днів',  instruction: 'Ввечері'         }], status: 'active' }),
-      this.prescriptionRepo.create({ patientId: patients[1].id, doctorId: doctors[0].id, items: [{ name: 'Парацетамол 500мг',  dosage: '1-2 таб.', frequency: '3 р/день', duration: '5 днів',   instruction: 'При температурі' }], status: 'active' }),
-      this.prescriptionRepo.create({ patientId: patients[1].id, doctorId: doctors[0].id, items: [{ name: 'Омепразол 20мг',     dosage: '1 капс.',  frequency: '1 р/день', duration: '14 днів',  instruction: 'До їжі'          }], status: 'active' }),
-      this.prescriptionRepo.create({ patientId: patients[2].id, doctorId: doctors[2].id, items: [{ name: 'Диклофенак 50мг',    dosage: '1 таб.',   frequency: '2 р/день', duration: '7 днів',   instruction: 'Після їжі'       }], status: 'active' }),
-      this.prescriptionRepo.create({ patientId: patients[2].id, doctorId: doctors[2].id, items: [{ name: 'Пірацетам 400мг',    dosage: '2 капс.',  frequency: '3 р/день', duration: '30 днів',  instruction: ''                }], status: 'active' }),
-      this.prescriptionRepo.create({ patientId: patients[3].id, doctorId: doctors[0].id, items: [{ name: 'Левотироксин 50мкг', dosage: '1 таб.',   frequency: '1 р/день', duration: 'постійно', instruction: 'Натщесерце'      }], status: 'active' }),
-      this.prescriptionRepo.create({ patientId: patients[4].id, doctorId: doctors[1].id, items: [{ name: 'Метформін 500мг',    dosage: '1 таб.',   frequency: '2 р/день', duration: 'постійно', instruction: 'Під час їжі'     }], status: 'active' }),
-      this.prescriptionRepo.create({ patientId: patients[4].id, doctorId: doctors[1].id, items: [{ name: 'Аторвастатин 20мг',  dosage: '1 таб.',   frequency: '1 р/день', duration: 'постійно', instruction: 'Ввечері'         }], status: 'active' }),
-      this.prescriptionRepo.create({ patientId: patients[5].id, doctorId: doctors[2].id, items: [{ name: 'Карбамазепін 200мг', dosage: '1 таб.',   frequency: '2 р/день', duration: '30 днів',  instruction: 'Під час їжі'     }], status: 'active' }),
+      this.prescriptionRepo.create({ patientId: patients[0].id, doctorId: doctors[1].id, items: [{ name: 'Амлодипін 5мг',      dosage: '1 таб.',   frequency: '1 р/день', duration: '30 днів',  instruction: 'Вранці до їжі'  }], status: PrescriptionStatus.ACTIVE }),
+      this.prescriptionRepo.create({ patientId: patients[0].id, doctorId: doctors[1].id, items: [{ name: 'Лозартан 50мг',      dosage: '1 таб.',   frequency: '1 р/день', duration: '30 днів',  instruction: 'Ввечері'         }], status: PrescriptionStatus.ACTIVE }),
+      this.prescriptionRepo.create({ patientId: patients[1].id, doctorId: doctors[0].id, items: [{ name: 'Парацетамол 500мг',  dosage: '1-2 таб.', frequency: '3 р/день', duration: '5 днів',   instruction: 'При температурі' }], status: PrescriptionStatus.ACTIVE }),
+      this.prescriptionRepo.create({ patientId: patients[1].id, doctorId: doctors[0].id, items: [{ name: 'Омепразол 20мг',     dosage: '1 капс.',  frequency: '1 р/день', duration: '14 днів',  instruction: 'До їжі'          }], status: PrescriptionStatus.ACTIVE }),
+      this.prescriptionRepo.create({ patientId: patients[2].id, doctorId: doctors[2].id, items: [{ name: 'Диклофенак 50мг',    dosage: '1 таб.',   frequency: '2 р/день', duration: '7 днів',   instruction: 'Після їжі'       }], status: PrescriptionStatus.ACTIVE }),
+      this.prescriptionRepo.create({ patientId: patients[2].id, doctorId: doctors[2].id, items: [{ name: 'Пірацетам 400мг',    dosage: '2 капс.',  frequency: '3 р/день', duration: '30 днів',  instruction: ''                }], status: PrescriptionStatus.ACTIVE }),
+      this.prescriptionRepo.create({ patientId: patients[3].id, doctorId: doctors[0].id, items: [{ name: 'Левотироксин 50мкг', dosage: '1 таб.',   frequency: '1 р/день', duration: 'постійно', instruction: 'Натщесерце'      }], status: PrescriptionStatus.ACTIVE }),
+      this.prescriptionRepo.create({ patientId: patients[4].id, doctorId: doctors[1].id, items: [{ name: 'Метформін 500мг',    dosage: '1 таб.',   frequency: '2 р/день', duration: 'постійно', instruction: 'Під час їжі'     }], status: PrescriptionStatus.ACTIVE }),
+      this.prescriptionRepo.create({ patientId: patients[4].id, doctorId: doctors[1].id, items: [{ name: 'Аторвастатин 20мг',  dosage: '1 таб.',   frequency: '1 р/день', duration: 'постійно', instruction: 'Ввечері'         }], status: PrescriptionStatus.ACTIVE }),
+      this.prescriptionRepo.create({ patientId: patients[5].id, doctorId: doctors[2].id, items: [{ name: 'Карбамазепін 200мг', dosage: '1 таб.',   frequency: '2 р/день', duration: '30 днів',  instruction: 'Під час їжі'     }], status: PrescriptionStatus.ACTIVE }),
     ]);
 
     // Lab tests

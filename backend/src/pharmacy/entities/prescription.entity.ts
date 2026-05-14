@@ -35,7 +35,7 @@ export class Prescription {
 
   // items: [{name, dosage, frequency, duration}]
   @Column({ type: 'jsonb', default: '[]' })
-  items: Array<{ name: string; dosage: string; frequency: string; duration: string }>;
+  items: Array<{ name: string; dosage: string; frequency: string; duration: string; instruction?: string }>;
 
   @Column({ type: 'enum', enum: PrescriptionStatus, default: PrescriptionStatus.ACTIVE })
   status: PrescriptionStatus;
