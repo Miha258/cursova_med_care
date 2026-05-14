@@ -46,10 +46,15 @@ export class AppointmentsService {
       relations: ['patient', 'doctor'],
       order: { startTime: 'ASC' },
     });
-    const ids = appointments.map(a => a.id);
-    const invoices = await this.financeService.findByAppointmentIds(ids);
-    const invoiceMap = new Map(invoices.map(i => [i.appointmentId, { status: i.status, id: i.id }]));
-    return appointments.map(a => ({ ...a, invoice: invoiceMap.get(a.id) ?? null }));
+    try {
+      if (appointments.length) {
+        const ids = appointments.map(a => a.id);
+        const invoices = await this.financeService.findByAppointmentIds(ids);
+        const invoiceMap = new Map(invoices.map(i => [i.appointmentId, { status: i.status, id: i.id }]));
+        appointments.forEach(a => { (a as any).invoice = invoiceMap.get(a.id) ?? null; });
+      }
+    } catch (_) {}
+    return appointments;
   }
 
   async findToday() {
