@@ -127,4 +127,43 @@ export class MailerService {
       this.logger.warn(`Failed to send update to ${dto.to}: ${err.message}`);
     }
   }
+
+  async sendAppointmentCancellation(dto: { to: string; patientName: string; date: string; time: string; doctorName: string }) {
+    const html = `
+<!DOCTYPE html><html lang="uk"><head><meta charset="UTF-8"><style>
+  body { font-family: Arial, sans-serif; background: #f5f7fa; margin: 0; padding: 20px; }
+  .card { background: #fff; border-radius: 16px; max-width: 520px; margin: 0 auto; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+  .header { background: linear-gradient(135deg, #EF4444 0%, #F87171 100%); padding: 28px 32px; }
+  .header h1 { color: #fff; margin: 0; font-size: 22px; font-weight: 800; }
+  .header p { color: rgba(255,255,255,0.85); margin: 6px 0 0; font-size: 13px; }
+  .body { padding: 28px 32px; }
+  .row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+  .row:last-child { border-bottom: none; }
+  .label { color: #9CA3AF; font-size: 13px; }
+  .value { color: #1a1a2e; font-size: 14px; font-weight: 700; }
+  .footer { background: #f8fafc; padding: 16px 32px; text-align: center; color: #9CA3AF; font-size: 12px; }
+</style></head><body>
+<div class="card">
+  <div class="header"><h1>🏥 MedCare CRM</h1><p>Скасування прийому</p></div>
+  <div class="body">
+    <p style="margin:0 0 16px;color:#374151;">Шановний(а) <b>${dto.patientName}</b>, ваш прийом було скасовано.</p>
+    <div class="row"><span class="label">Лікар</span><span class="value">${dto.doctorName}</span></div>
+    <div class="row"><span class="label">Дата</span><span class="value">${dto.date}</span></div>
+    <div class="row"><span class="label">Час</span><span class="value">${dto.time}</span></div>
+  </div>
+  <div class="footer">MedCare CRM · Цей лист згенеровано автоматично</div>
+</div></body></html>`;
+
+    try {
+      await this.transporter.sendMail({
+        from: `"MedCare CRM" <${process.env.MAIL_USER}>`,
+        to: dto.to,
+        subject: `❌ Прийом скасовано — ${dto.date} о ${dto.time}`,
+        html,
+      });
+      this.logger.log(`Cancellation notification sent to ${dto.to}`);
+    } catch (err) {
+      this.logger.warn(`Failed to send cancellation to ${dto.to}: ${err.message}`);
+    }
+  }
 }

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Invoice, InvoiceStatus, PaymentMethod } from './entities/invoice.entity';
 
 @Injectable()
@@ -46,6 +46,11 @@ export class FinanceService {
 
   async findByAppointmentId(appointmentId: string) {
     return this.repo.findOne({ where: { appointmentId } });
+  }
+
+  async findByAppointmentIds(ids: string[]) {
+    if (!ids.length) return [];
+    return this.repo.find({ where: { appointmentId: In(ids) }, select: ['appointmentId', 'status', 'id'] });
   }
 
   async createForAppointment(dto: { patientId: string; appointmentId: string; amount: number; description?: string }) {

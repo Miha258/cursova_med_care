@@ -12,6 +12,7 @@ class AppointmentModel extends Equatable {
   final bool admissionRequired;
   final Map<String, dynamic>? patient;
   final Map<String, dynamic>? doctor;
+  final Map<String, dynamic>? invoice;
 
   const AppointmentModel({
     required this.id,
@@ -25,6 +26,7 @@ class AppointmentModel extends Equatable {
     this.admissionRequired = false,
     this.patient,
     this.doctor,
+    this.invoice,
   });
 
   String get timeStr {
@@ -42,6 +44,8 @@ class AppointmentModel extends Equatable {
   }
 
   String get doctorSpec => doctor?['specialization'] ?? '';
+
+  bool get isPaid => invoice?['status'] == 'paid';
 
   String get reasonLabel {
     switch (reason) {
@@ -65,6 +69,7 @@ class AppointmentModel extends Equatable {
         admissionRequired: json['admissionRequired'] ?? false,
         patient: json['patient'],
         doctor: json['doctor'],
+        invoice: json['invoice'] != null ? Map<String, dynamic>.from(json['invoice']) : null,
       );
 
   @override

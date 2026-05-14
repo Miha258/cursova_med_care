@@ -39,7 +39,7 @@ import { LabTest } from './lab-tests/entities/lab-test.entity';
       database: process.env.DB_NAME || 'medcare',
       entities: [User, Patient, Doctor, Appointment, MedicalRecord, Medication, Prescription, Invoice, Ward, AuditLog, LabTest],
       synchronize: true, // AUTO-MIGRATE: TypeORM creates all 10 tables on startup
-      logging: false,
+      logging: ['query', 'error'],
     }),
     AuthModule,
     UsersModule,

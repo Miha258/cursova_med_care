@@ -107,7 +107,29 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
               child: Text(a.timeStr, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: statusColor)),
             ),
             const SizedBox(height: 4),
-            const Icon(Icons.more_horiz, color: AppColors.textSecondary, size: 18),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: a.invoice == null
+                    ? AppColors.border.withValues(alpha: 0.3)
+                    : a.isPaid
+                        ? AppColors.success.withValues(alpha: 0.15)
+                        : const Color(0xFFFFF3E0),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                a.invoice == null ? 'Без рахунку' : a.isPaid ? 'Оплачено' : 'Не оплачено',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: a.invoice == null
+                      ? AppColors.textSecondary
+                      : a.isPaid
+                          ? AppColors.success
+                          : const Color(0xFFE65100),
+                ),
+              ),
+            ),
           ]),
         ]),
       ),

@@ -40,12 +40,16 @@ export class AppointmentsService {
     return saved;
   }
 
-  findAll(patientId?: string) {
-    return this.repo.find({
+  async findAll(patientId?: string) {
+    const appointments = await this.repo.find({
       where: patientId ? { patientId } : undefined,
       relations: ['patient', 'doctor'],
       order: { startTime: 'ASC' },
     });
+    const ids = appointments.map(a => a.id);
+    const invoices = await this.financeService.findByAppointmentIds(ids);
+    const invoiceMap = new Map(invoices.map(i => [i.appointmentId, { status: i.status, id: i.id }]));
+    return appointments.map(a => ({ ...a, invoice: invoiceMap.get(a.id) ?? null }));
   }
 
   async findToday() {
@@ -115,8 +119,27 @@ export class AppointmentsService {
   }
 
   async cancel(id: string) {
-    await this.findOne(id);
+    const appointment = await this.findOne(id);
     await this.repo.update(id, { status: AppointmentStatus.CANCELLED });
+
+    try {
+      const patient = await this.patientRepo.findOne({ where: { id: appointment.patientId } });
+      if (patient?.email) {
+        const d = new Date(appointment.startTime);
+        const dateStr = `${d.getDate().toString().padStart(2,'0')}.${(d.getMonth()+1).toString().padStart(2,'0')}.${d.getFullYear()}`;
+        const timeStr = `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+        const doc = (appointment as any).doctor;
+        const doctorName = doc ? `Д-р ${doc.lastName} ${doc.firstName}` : 'Лікар';
+        await this.mailer.sendAppointmentCancellation({
+          to: patient.email,
+          patientName: `${patient.firstName} ${patient.lastName}`,
+          date: dateStr,
+          time: timeStr,
+          doctorName,
+        });
+      }
+    } catch (_) {}
+
     return this.findOne(id);
   }
 
