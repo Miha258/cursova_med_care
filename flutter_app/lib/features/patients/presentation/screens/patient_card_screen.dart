@@ -912,7 +912,14 @@ class _AddLabTestSheet extends StatefulWidget {
 class _AddLabTestSheetState extends State<_AddLabTestSheet> {
   final _nameCtrl = TextEditingController();
   final _resCtrl = TextEditingController();
+  String _status = 'normal';
   bool _saving = false;
+
+  static const _statuses = [
+    {'value': 'normal',   'label': 'Норма',      'color': AppColors.success},
+    {'value': 'abnormal', 'label': 'Відхилення', 'color': AppColors.danger},
+    {'value': 'pending',  'label': 'Очікується', 'color': AppColors.primary},
+  ];
 
   InputDecoration _dec(String label) => InputDecoration(
     labelText: label, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -928,6 +935,32 @@ class _AddLabTestSheetState extends State<_AddLabTestSheet> {
         TextField(controller: _nameCtrl, decoration: _dec('Назва аналізу')),
         const SizedBox(height: 12),
         TextField(controller: _resCtrl, decoration: _dec('Результат')),
+        const SizedBox(height: 12),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Text('Статус', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+        ),
+        const SizedBox(height: 8),
+        Row(children: _statuses.map((s) {
+          final selected = _status == s['value'];
+          final color = s['color'] as Color;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _status = s['value'] as String),
+              child: Container(
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: selected ? color.withValues(alpha: 0.15) : AppColors.background,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: selected ? color : AppColors.border, width: selected ? 1.5 : 1),
+                ),
+                child: Center(child: Text(s['label'] as String,
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: selected ? color : AppColors.textSecondary))),
+              ),
+            ),
+          );
+        }).toList()),
         const SizedBox(height: 20),
         SizedBox(width: double.infinity, height: 50, child: ElevatedButton(
           onPressed: _saving ? null : () async {
@@ -939,7 +972,7 @@ class _AddLabTestSheetState extends State<_AddLabTestSheet> {
                 'patientId': widget.patientId,
                 'testName': _nameCtrl.text.trim(),
                 'result': _resCtrl.text.trim(),
-                'status': 'normal',
+                'status': _status,
               });
               if (mounted) { nav.pop(); widget.onSaved(); }
             } catch (e) {
