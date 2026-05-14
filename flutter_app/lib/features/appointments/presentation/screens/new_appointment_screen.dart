@@ -98,10 +98,7 @@ class _NewAppointmentScreenState extends State<NewAppointmentScreen> {
     return BlocListener<AppointmentsBloc, AppointmentsState>(
       listener: (context, state) {
         if (state is AppointmentCreated) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('✅ Запис підтверджено! ${state.appointment.timeStr}'), backgroundColor: AppColors.success),
-          );
-          Navigator.of(context).pop();
+          _showReceiptDialog(context, state.appointment);
         }
         if (state is AppointmentsError) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message), backgroundColor: AppColors.danger));
@@ -172,6 +169,110 @@ class _NewAppointmentScreenState extends State<NewAppointmentScreen> {
               label: Text(_selectedSlot != null ? 'Підтвердити запис на $_selectedSlot' : 'Підтвердити запис'),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showReceiptDialog(BuildContext ctx, AppointmentModel appt) {
+    final emailCtrl = TextEditingController();
+    bool sending = false;
+
+    final patientName = widget.patientName ?? _pickedPatientName ?? 'Пацієнт';
+    final doctorName = _selectedDoctor?.name ?? '';
+    final spec = _selectedDoctor?.spec ?? '';
+    final date = '${_selectedDay.day.toString().padLeft(2, '0')}.${_selectedDay.month.toString().padLeft(2, '0')}.${_selectedDay.year}';
+    final time = appt.timeStr;
+
+    showDialog(
+      context: ctx,
+      barrierDismissible: false,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (dialogCtx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Column(
+            children: [
+              Container(
+                width: 56, height: 56,
+                decoration: const BoxDecoration(color: Color(0xFFE8F5E9), shape: BoxShape.circle),
+                child: const Icon(Icons.check_circle, color: AppColors.success, size: 32),
+              ),
+              const SizedBox(height: 12),
+              const Text('Запис підтверджено!', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800), textAlign: TextAlign.center),
+              const SizedBox(height: 4),
+              Text('$date о $time', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w500), textAlign: TextAlign.center),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Divider(),
+              const SizedBox(height: 8),
+              const Text('Надіслати чек на email', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text)),
+              const SizedBox(height: 10),
+              TextField(
+                controller: emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  hintText: 'example@email.com',
+                  prefixIcon: const Icon(Icons.email_outlined, size: 18, color: AppColors.textSecondary),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.border)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.border)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogCtx);
+                Navigator.of(ctx).pop();
+              },
+              child: const Text('Пропустити', style: TextStyle(color: AppColors.textSecondary)),
+            ),
+            ElevatedButton.icon(
+              onPressed: sending ? null : () async {
+                final email = emailCtrl.text.trim();
+                if (email.isEmpty || !email.contains('@')) {
+                  Navigator.pop(dialogCtx);
+                  Navigator.of(ctx).pop();
+                  return;
+                }
+                setDialogState(() => sending = true);
+                try {
+                  await ApiService.instance.post('/appointments/receipt', data: {
+                    'email': email,
+                    'patientName': patientName,
+                    'doctorName': doctorName,
+                    'specialization': spec,
+                    'date': date,
+                    'time': time,
+                    'reason': _selectedReason,
+                  });
+                  if (dialogCtx.mounted) {
+                    Navigator.pop(dialogCtx);
+                    Navigator.of(ctx).pop();
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(content: Text('✅ Чек надіслано на $email'), backgroundColor: AppColors.success),
+                    );
+                  }
+                } catch (_) {
+                  if (dialogCtx.mounted) {
+                    Navigator.pop(dialogCtx);
+                    Navigator.of(ctx).pop();
+                  }
+                }
+              },
+              icon: sending
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.send, size: 16),
+              label: const Text('Надіслати'),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            ),
+          ],
         ),
       ),
     );

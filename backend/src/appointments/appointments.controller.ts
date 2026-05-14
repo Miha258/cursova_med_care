@@ -3,13 +3,14 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger'
 import { AppointmentsService } from './appointments.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { MailerService } from '../mailer/mailer.service';
 
 @ApiTags('appointments')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('appointments')
 export class AppointmentsController {
-  constructor(private service: AppointmentsService) {}
+  constructor(private service: AppointmentsService, private mailer: MailerService) {}
 
   @Get()
   @ApiQuery({ name: 'patientId', required: false })
@@ -53,5 +54,28 @@ export class AppointmentsController {
   @ApiOperation({ summary: 'DELETE /appointments/:id — скасувати прийом' })
   cancel(@Param('id') id: string) {
     return this.service.cancel(id);
+  }
+
+  @Post('receipt')
+  @ApiOperation({ summary: 'POST /appointments/receipt — надіслати чек на email' })
+  async sendReceipt(@Body() body: {
+    email: string;
+    patientName: string;
+    doctorName: string;
+    specialization: string;
+    date: string;
+    time: string;
+    reason: string;
+  }) {
+    await this.mailer.sendReceipt({
+      to: body.email,
+      patientName: body.patientName,
+      doctorName: body.doctorName,
+      specialization: body.specialization,
+      date: body.date,
+      time: body.time,
+      reason: body.reason,
+    });
+    return { ok: true };
   }
 }
