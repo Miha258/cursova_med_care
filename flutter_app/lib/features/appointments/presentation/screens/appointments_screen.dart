@@ -42,7 +42,11 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                 create: (_) => AppointmentsBloc(repository: AppointmentsRepository()),
                 child: const NewAppointmentScreen(),
               ),
-            )),
+            )).then((_) {
+              if (context.mounted) {
+                context.read<AppointmentsBloc>().add(AppointmentsLoadRequested());
+              }
+            }),
           ),
         ],
       ),

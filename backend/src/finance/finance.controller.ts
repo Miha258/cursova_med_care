@@ -2,7 +2,7 @@ import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@ne
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { FinanceService } from './finance.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { Invoice } from './entities/invoice.entity';
+import { Invoice, PaymentMethod } from './entities/invoice.entity';
 
 @ApiTags('finance')
 @ApiBearerAuth()
@@ -34,5 +34,23 @@ export class FinanceController {
   @ApiOperation({ summary: 'PATCH /invoices/:id/pay — оплатити рахунок' })
   pay(@Param('id') id: string) {
     return this.service.pay(id);
+  }
+
+  @Patch(':id/pay-method')
+  @ApiOperation({ summary: 'PATCH /invoices/:id/pay-method — оплатити з вибором методу (card/apple_pay/google_pay)' })
+  payWithMethod(@Param('id') id: string, @Body('paymentMethod') method: PaymentMethod) {
+    return this.service.payWithMethod(id, method);
+  }
+
+  @Patch('by-appointment/:appointmentId/pay')
+  @ApiOperation({ summary: 'PATCH /invoices/by-appointment/:appointmentId/pay — оплатити за ID прийому' })
+  payByAppointment(@Param('appointmentId') appointmentId: string, @Body('paymentMethod') method: PaymentMethod) {
+    return this.service.payByAppointmentId(appointmentId, method);
+  }
+
+  @Post('for-appointment')
+  @ApiOperation({ summary: 'POST /invoices/for-appointment — виставити рахунок за прийом' })
+  createForAppointment(@Body() dto: { patientId: string; appointmentId: string; amount: number; description?: string }) {
+    return this.service.createForAppointment(dto);
   }
 }

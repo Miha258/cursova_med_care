@@ -17,7 +17,7 @@ class PatientCardScreen extends StatefulWidget {
 
 class _PatientCardScreenState extends State<PatientCardScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final _tabs = ['Картки', 'Прийоми', 'Препарати', 'Аналізи', 'Діагнози'];
+  final _tabs = ['Картки', 'Прийоми', 'Рецепти', 'Аналізи', 'Діагнози'];
 
   @override
   void initState() {
@@ -199,8 +199,8 @@ class _PatientCardScreenState extends State<PatientCardScreen> with SingleTicker
             child: const Icon(Icons.event_available, color: AppColors.primary, size: 20)),
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(app.date.substring(0, 10), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-          Text(app.reason, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+          Text('${app.startTime.day.toString().padLeft(2,'0')}.${app.startTime.month.toString().padLeft(2,'0')}.${app.startTime.year}  ${app.timeStr}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          Text(app.reasonLabel, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
         ])),
         Text(app.status, style: const TextStyle(color: AppColors.success, fontWeight: FontWeight.bold, fontSize: 12)),
       ]),
@@ -533,10 +533,10 @@ class _MedicationsTabState extends State<_MedicationsTab> {
   }
 
   Widget _medCard(BuildContext ctx, Map<String, dynamic> m) {
-    final qty = (m['quantity'] as num?)?.toInt() ?? 0;
-    final minQty = (m['minQuantity'] as num?)?.toInt() ?? 0;
+    final qty = int.tryParse(m['quantity']?.toString() ?? '0') ?? 0;
+    final minQty = int.tryParse(m['minQuantity']?.toString() ?? '0') ?? 0;
     final isLow = qty <= minQty;
-    final price = (m['price'] as num?)?.toDouble() ?? 0.0;
+    final price = double.tryParse(m['price']?.toString() ?? '0') ?? 0.0;
     final unit = m['unit'] ?? 'таб.';
     final name = m['name'] ?? '—';
 
@@ -1159,7 +1159,7 @@ extension on _PatientCardScreenState {
         const SizedBox(width: 12),
         Expanded(child: _actionCard(
           icon: Icons.local_pharmacy_rounded,
-          label: 'Препарати',
+          label: 'Рецепти',
           color: const Color(0xFFEC4899),
           onTap: () => _tabController.animateTo(2),
         )),

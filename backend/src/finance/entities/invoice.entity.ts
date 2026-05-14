@@ -11,6 +11,12 @@ export enum InvoiceStatus {
   CANCELLED = 'cancelled',
 }
 
+export enum PaymentMethod {
+  CARD = 'card',
+  APPLE_PAY = 'apple_pay',
+  GOOGLE_PAY = 'google_pay',
+}
+
 @Entity('invoices')
 export class Invoice {
   @PrimaryGeneratedColumn('uuid')
@@ -41,6 +47,9 @@ export class Invoice {
 
   @Column({ nullable: true })
   description: string;
+
+  @Column({ type: 'enum', enum: PaymentMethod, nullable: true })
+  paymentMethod: PaymentMethod;
 
   @CreateDateColumn()
   createdAt: Date;

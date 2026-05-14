@@ -3,10 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
 import { Appointment, AppointmentStatus } from './entities/appointment.entity';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
+import { FinanceService } from '../finance/finance.service';
 
 @Injectable()
 export class AppointmentsService {
-  constructor(@InjectRepository(Appointment) private repo: Repository<Appointment>) {}
+  constructor(
+    @InjectRepository(Appointment) private repo: Repository<Appointment>,
+    private financeService: FinanceService,
+  ) {}
 
   async create(dto: CreateAppointmentDto) {
     const appointment = this.repo.create({
@@ -14,7 +18,17 @@ export class AppointmentsService {
       startTime: new Date(dto.startTime),
       endTime: new Date(dto.endTime),
     });
-    return this.repo.save(appointment);
+    const saved = await this.repo.save(appointment);
+
+    // Create a pending invoice for the appointment
+    await this.financeService.createForAppointment({
+      patientId: saved.patientId,
+      appointmentId: saved.id,
+      amount: 350.00, // Fixed price for demo
+      description: `Прийом у лікаря`,
+    });
+
+    return saved;
   }
 
   findAll(patientId?: string) {

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Invoice, InvoiceStatus } from './entities/invoice.entity';
+import { Invoice, InvoiceStatus, PaymentMethod } from './entities/invoice.entity';
 
 @Injectable()
 export class FinanceService {
@@ -25,6 +25,28 @@ export class FinanceService {
     if (!invoice) throw new NotFoundException('Рахунок не знайдено');
     await this.repo.update(id, { status: InvoiceStatus.PAID, paidAt: new Date() });
     return this.repo.findOne({ where: { id } });
+  }
+
+  async payWithMethod(id: string, paymentMethod: PaymentMethod) {
+    const invoice = await this.repo.findOne({ where: { id } });
+    if (!invoice) throw new NotFoundException('Рахунок не знайдено');
+    await this.repo.update(id, {
+      status: InvoiceStatus.PAID,
+      paidAt: new Date(),
+      paymentMethod,
+    });
+    return this.repo.findOne({ where: { id } });
+  }
+
+  async payByAppointmentId(appointmentId: string, paymentMethod: PaymentMethod) {
+    const invoice = await this.repo.findOne({ where: { appointmentId } });
+    if (!invoice) throw new NotFoundException('Рахунок для цього запису не знайдено');
+    return this.payWithMethod(invoice.id, paymentMethod);
+  }
+
+  async createForAppointment(dto: { patientId: string; appointmentId: string; amount: number; description?: string }) {
+    const invoice = this.repo.create({ ...dto, status: InvoiceStatus.PENDING });
+    return this.repo.save(invoice);
   }
 
   async getFinancialSummary() {

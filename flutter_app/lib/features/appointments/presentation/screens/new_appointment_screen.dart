@@ -5,6 +5,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/network/api_service.dart';
 import '../bloc/appointments_bloc.dart';
 import '../../data/models/appointment_model.dart';
+import 'payment_screen.dart';
 
 // Рис. 2.4б — Запис на прийом
 class NewAppointmentScreen extends StatefulWidget {
@@ -231,7 +232,20 @@ class _NewAppointmentScreenState extends State<NewAppointmentScreen> {
                 Navigator.pop(dialogCtx);
                 Navigator.of(ctx).pop();
               },
-              child: const Text('Пропустити', style: TextStyle(color: AppColors.textSecondary)),
+              child: const Text('Пізніше', style: TextStyle(color: AppColors.textSecondary)),
+            ),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(dialogCtx);
+                _showPaymentScreen(ctx, appt);
+              },
+              icon: const Icon(Icons.payment, size: 16),
+              label: const Text('Оплатити зараз'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.success,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
             ),
             ElevatedButton.icon(
               onPressed: sending ? null : () async {
@@ -276,6 +290,20 @@ class _NewAppointmentScreenState extends State<NewAppointmentScreen> {
         ),
       ),
     );
+  }
+
+  void _showPaymentScreen(BuildContext ctx, AppointmentModel appt) {
+    final patientName = widget.patientName ?? _pickedPatientName ?? 'Пацієнт';
+    final doctorName = _selectedDoctor?.name ?? '';
+    final date = '${_selectedDay.day.toString().padLeft(2, '0')}.${_selectedDay.month.toString().padLeft(2, '0')}.${_selectedDay.year}';
+    Navigator.of(ctx).push(MaterialPageRoute(
+      builder: (_) => PaymentScreen(
+        invoiceId: appt.id,
+        amount: 350.00,
+        description: 'Прийом у Д-р $doctorName • $date',
+        patientName: patientName,
+      ),
+    ));
   }
 
   Widget _buildPatientSelector() => GestureDetector(
