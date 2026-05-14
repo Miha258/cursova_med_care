@@ -9,7 +9,8 @@ export class CreateMedicalRecordDto {
   patientId: string;
 
   @IsString()
-  doctorId: string;
+  @IsOptional()
+  doctorId?: string;
 
   @IsString()
   @IsOptional()
