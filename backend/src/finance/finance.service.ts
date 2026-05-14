@@ -44,6 +44,10 @@ export class FinanceService {
     return this.payWithMethod(invoice.id, paymentMethod);
   }
 
+  async findByAppointmentId(appointmentId: string) {
+    return this.repo.findOne({ where: { appointmentId } });
+  }
+
   async createForAppointment(dto: { patientId: string; appointmentId: string; amount: number; description?: string }) {
     const invoice = this.repo.create({ ...dto, status: InvoiceStatus.PENDING });
     return this.repo.save(invoice);

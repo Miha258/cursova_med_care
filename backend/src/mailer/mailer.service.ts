@@ -24,6 +24,7 @@ export class MailerService {
     date: string;
     time: string;
     reason: string;
+    appointmentId?: string;
   }) {
     const reasonLabels: Record<string, string> = {
       repeat: 'Повторний прийом',
@@ -63,6 +64,10 @@ export class MailerService {
     <div class="row"><span class="label">Дата</span><span class="value">${dto.date}</span></div>
     <div class="row"><span class="label">Час</span><span class="value">${dto.time}</span></div>
     <div class="row"><span class="label">Тип прийому</span><span class="value">${reasonLabels[dto.reason] ?? dto.reason}</span></div>
+    <div style="margin-top:24px;text-align:center;padding:20px 0;border-top:1px solid #f0f0f0">
+      <a href="http://45.12.111.55:3001/api/pay/appointment/${dto.appointmentId ?? ''}" style="display:inline-block;background:#1976D2;color:#ffffff;text-decoration:none;padding:14px 36px;border-radius:30px;font-size:15px;font-weight:800;letter-spacing:.3px;font-family:Arial,sans-serif">&#128179; Оплатити онлайн</a>
+      <p style="margin:10px 0 0;font-size:12px;color:#9CA3AF;font-family:Arial,sans-serif">Натисніть кнопку, щоб перейти до безпечної сторінки оплати</p>
+    </div>
   </div>
   <div class="footer">
     MedCare CRM · Цей лист згенеровано автоматично · Не відповідайте на нього

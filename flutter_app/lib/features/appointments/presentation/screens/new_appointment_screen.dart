@@ -98,9 +98,7 @@ class _NewAppointmentScreenState extends State<NewAppointmentScreen> {
     return BlocListener<AppointmentsBloc, AppointmentsState>(
       listener: (context, state) {
         if (state is AppointmentCreated) {
-          Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('✅ Запис підтверджено!'), backgroundColor: AppColors.success));
+          _showReceiptDialog(context, state);
         }
         if (state is AppointmentsError) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message), backgroundColor: AppColors.danger));
@@ -383,6 +381,99 @@ class _NewAppointmentScreenState extends State<NewAppointmentScreen> {
           ],
         ),
       );
+
+  void _showReceiptDialog(BuildContext screenContext, AppointmentCreated state) {
+    final emailController = TextEditingController();
+    final patientName = widget.patientName ?? _pickedPatientName ?? '';
+    final doctorName = _selectedDoctor != null ? 'Д-р ${_selectedDoctor!.name}' : '';
+    final spec = _selectedDoctor?.spec ?? '';
+    final d = _selectedDay;
+    final dateStr = '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+    final timeStr = _selectedSlot ?? '';
+    final appointmentId = state.appointment.id;
+
+    showDialog<void>(
+      context: screenContext,
+      barrierDismissible: false,
+      builder: (ctx) {
+        bool sending = false;
+        return StatefulBuilder(
+          builder: (ctx, setS) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Row(children: [
+              Icon(Icons.email_outlined, color: AppColors.primary, size: 24),
+              SizedBox(width: 10),
+              Text('Надіслати чек', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+            ]),
+            content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Введіть email пацієнта — надішлемо чек із посиланням на оплату.', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+              const SizedBox(height: 14),
+              TextField(
+                controller: emailController,
+                keyboardType: TextInputType.emailAddress,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: 'patient@example.com',
+                  prefixIcon: const Icon(Icons.alternate_email, size: 18),
+                  filled: true,
+                  fillColor: AppColors.background,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AppColors.border)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AppColors.border)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                ),
+              ),
+            ]),
+            actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            actions: [
+              TextButton(
+                onPressed: sending ? null : () {
+                  Navigator.pop(ctx);
+                  Navigator.pop(screenContext);
+                  ScaffoldMessenger.of(screenContext).showSnackBar(const SnackBar(
+                    content: Text('✅ Запис підтверджено!'), backgroundColor: AppColors.success));
+                },
+                child: const Text('Пропустити'),
+              ),
+              ElevatedButton.icon(
+                onPressed: sending ? null : () async {
+                  final email = emailController.text.trim();
+                  if (email.isEmpty) return;
+                  setS(() => sending = true);
+                  try {
+                    await ApiService.instance.post('/appointments/receipt', data: {
+                      'email': email,
+                      'patientName': patientName,
+                      'doctorName': doctorName,
+                      'specialization': spec,
+                      'date': dateStr,
+                      'time': timeStr,
+                      'reason': _selectedReason,
+                      'appointmentId': appointmentId,
+                    });
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    if (screenContext.mounted) {
+                      Navigator.pop(screenContext);
+                      ScaffoldMessenger.of(screenContext).showSnackBar(SnackBar(
+                        content: Text('✅ Чек надіслано на $email'), backgroundColor: AppColors.success));
+                    }
+                  } catch (_) {
+                    setS(() => sending = false);
+                    if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+                      content: Text('Не вдалось надіслати email'), backgroundColor: AppColors.danger));
+                  }
+                },
+                icon: sending
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Icon(Icons.send_rounded, size: 16),
+                label: Text(sending ? 'Надсилання...' : 'Надіслати'),
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
 
 class DoctorInfo {

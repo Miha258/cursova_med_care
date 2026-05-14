@@ -13,6 +13,7 @@ import { ReportsModule } from './reports/reports.module';
 import { LabTestsModule } from './lab-tests/lab-tests.module';
 import { SeedModule } from './seed/seed.module';
 import { MailerModule } from './mailer/mailer.module';
+import { PaymentModule } from './payment/payment.module';
 
 // Entities
 import { User } from './users/entities/user.entity';
@@ -53,6 +54,7 @@ import { LabTest } from './lab-tests/entities/lab-test.entity';
     LabTestsModule,
     SeedModule,
     MailerModule,
+    PaymentModule,
   ],
 })
 export class AppModule {}

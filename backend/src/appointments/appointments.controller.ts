@@ -63,24 +63,17 @@ export class AppointmentsController {
   }
 
   @Post('receipt')
-  @ApiOperation({ summary: 'POST /appointments/receipt — надіслати чек на email' })
-  async sendReceipt(@Body() body: {
-    email: string;
-    patientName: string;
-    doctorName: string;
-    specialization: string;
-    date: string;
-    time: string;
-    reason: string;
-  }) {
+  @ApiOperation({ summary: 'POST /appointments/receipt — надіслати чек на email з посиланням на оплату' })
+  async sendReceipt(@Body() body: Record<string, string>) {
     await this.mailer.sendReceipt({
-      to: body.email,
-      patientName: body.patientName,
-      doctorName: body.doctorName,
-      specialization: body.specialization,
-      date: body.date,
-      time: body.time,
-      reason: body.reason,
+      to: body['email'],
+      patientName: body['patientName'],
+      doctorName: body['doctorName'],
+      specialization: body['specialization'],
+      date: body['date'],
+      time: body['time'],
+      reason: body['reason'],
+      appointmentId: body['appointmentId'],
     });
     return { ok: true };
   }

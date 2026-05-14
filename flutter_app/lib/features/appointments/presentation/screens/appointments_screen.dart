@@ -16,8 +16,6 @@ class AppointmentsScreen extends StatefulWidget {
 }
 
 class _AppointmentsScreenState extends State<AppointmentsScreen> {
-  // track which appointment ids were paid this session
-  final Set<String> _paidIds = {};
 
   @override
   void initState() {
@@ -73,7 +71,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   }
 
   Widget _appointmentCard(AppointmentModel a) {
-    final isPaid = _paidIds.contains(a.id);
     final statusColor = a.status == 'scheduled'
         ? AppColors.primary
         : a.status == 'completed'
@@ -101,20 +98,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
               Text(a.patientName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text)),
               const SizedBox(height: 2),
               Text('${a.doctorSpec} • ${a.reasonLabel}', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-              const SizedBox(height: 4),
-              Row(children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: isPaid ? AppColors.success.withValues(alpha: 0.12) : AppColors.warning.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                  child: Text(
-                    isPaid ? '✓ Оплачено' : '₴ Не оплачено',
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: isPaid ? AppColors.success : AppColors.warning),
-                  ),
-                ),
-              ]),
             ]),
           ),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
@@ -149,20 +132,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
               _showReschedule(a);
             }),
             const SizedBox(height: 10),
-            if (!_paidIds.contains(a.id))
-              _actionTile(Icons.payment_rounded, 'Оплатити', AppColors.success, () {
-                Navigator.pop(ctx);
-                _showPayment(a);
-              }),
-            if (_paidIds.contains(a.id)) ...[
-              const SizedBox(height: 10),
-              Container(
-                width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(color: AppColors.success.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-                child: const Center(child: Text('✓ Оплачено', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.w700, fontSize: 15))),
-              ),
-            ],
-            const SizedBox(height: 10),
             _actionTile(Icons.cancel_outlined, 'Скасувати прийом', AppColors.danger, () {
               Navigator.pop(ctx);
               _confirmDelete(a);
@@ -195,20 +164,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => _RescheduleSheet(appointment: a, onSaved: _reload),
-    );
-  }
-
-  // ── Payment ─────────────────────────────────────────────────────────────────
-  void _showPayment(AppointmentModel a) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => _PaymentSheet(
-        appointment: a,
-        onPaid: () {
-          if (mounted) setState(() => _paidIds.add(a.id));
-        },
-      ),
     );
   }
 
@@ -378,88 +333,3 @@ class _RescheduleSheetState extends State<_RescheduleSheet> {
   }
 }
 
-// ── Payment bottom sheet ───────────────────────────────────────────────────
-class _PaymentSheet extends StatefulWidget {
-  final AppointmentModel appointment;
-  final VoidCallback onPaid;
-  const _PaymentSheet({required this.appointment, required this.onPaid});
-  @override State<_PaymentSheet> createState() => _PaymentSheetState();
-}
-
-class _PaymentSheetState extends State<_PaymentSheet> {
-  String? _method;
-  bool _paying = false;
-
-  static const _methods = [
-    {'value': 'card',       'label': 'Банківська картка', 'icon': Icons.credit_card_rounded},
-    {'value': 'apple_pay',  'label': 'Apple Pay',         'icon': Icons.phone_iphone_rounded},
-    {'value': 'google_pay', 'label': 'Google Pay',        'icon': Icons.g_mobiledata_rounded},
-  ];
-
-  Future<void> _pay() async {
-    if (_method == null) return;
-    setState(() => _paying = true);
-    try {
-      await ApiService.instance.patch('/invoices/by-appointment/${widget.appointment.id}/pay', data: {'paymentMethod': _method});
-      if (mounted) {
-        Navigator.pop(context);
-        widget.onPaid();
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('✅ Оплата успішна!'), backgroundColor: AppColors.success));
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Помилка: $e'), backgroundColor: AppColors.danger));
-    }
-    if (mounted) setState(() => _paying = false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(width: 36, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 16),
-          const Text('Оплата прийому', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 4),
-          const Text('350 грн', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.primary)),
-          const SizedBox(height: 20),
-          ...(_methods.map((m) {
-            final selected = _method == m['value'];
-            return GestureDetector(
-              onTap: () => setState(() => _method = m['value'] as String),
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: selected ? AppColors.primary.withValues(alpha: 0.08) : AppColors.card,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: selected ? AppColors.primary : AppColors.border, width: selected ? 1.5 : 1),
-                ),
-                child: Row(children: [
-                  Icon(m['icon'] as IconData, color: selected ? AppColors.primary : AppColors.textSecondary, size: 22),
-                  const SizedBox(width: 12),
-                  Text(m['label'] as String, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: selected ? AppColors.primary : AppColors.text)),
-                  const Spacer(),
-                  if (selected) const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20),
-                ]),
-              ),
-            );
-          })),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity, height: 52,
-            child: ElevatedButton(
-              onPressed: (_method == null || _paying) ? null : _pay,
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-              child: _paying
-                  ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Text('Оплатити', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-            ),
-          ),
-        ]),
-      ),
-    );
-  }
-}
