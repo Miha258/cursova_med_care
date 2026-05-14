@@ -1,9 +1,49 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../bloc/patients_bloc.dart';
 import '../../../../shared/widgets/bottom_nav_bar.dart';
 import 'patient_card_screen.dart';
+
+// ── Phone mask +380 (XX) XXX-XX-XX ────────────────────────────────────────
+class _PhoneFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue old, TextEditingValue nv) {
+    var digits = nv.text.replaceAll(RegExp(r'\D'), '');
+
+    // Auto-prepend 380 if user starts with 0 or just a number
+    if (digits.startsWith('80')) digits = '3$digits';
+    if (digits.startsWith('0'))  digits = '38$digits';
+    if (!digits.startsWith('3')) digits = '380$digits';
+
+    if (digits.length > 12) digits = digits.substring(0, 12);
+
+    final s = StringBuffer('+');
+    for (var i = 0; i < digits.length; i++) {
+      s.write(digits[i]);
+      if (i == 2 && digits.length > 3)  s.write(' (');
+      if (i == 4 && digits.length > 5)  s.write(') ');
+      if (i == 7 && digits.length > 8)  s.write('-');
+      if (i == 9 && digits.length > 10) s.write('-');
+    }
+    final text = s.toString();
+    return nv.copyWith(text: text, selection: TextSelection.collapsed(offset: text.length));
+  }
+}
+
+String? _validatePhone(String? v) {
+  if (v == null || v.trim().isEmpty) return null;
+  final digits = v.replaceAll(RegExp(r'\D'), '');
+  if (digits.length != 12) return 'Введіть повний номер: +380 (XX) XXX-XX-XX';
+  return null;
+}
+
+String? _validateEmail(String? v) {
+  if (v == null || v.trim().isEmpty) return null;
+  final ok = RegExp(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$').hasMatch(v.trim());
+  return ok ? null : 'Введіть коректний email (user@domain.com)';
+}
 
 // Екран списку пацієнтів
 class PatientsListScreen extends StatefulWidget {
@@ -299,9 +339,9 @@ class _AddPatientSheetState extends State<_AddPatientSheet> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                _field(_phoneCtrl, 'Телефон', hint: '+380XXXXXXXXX', keyboard: TextInputType.phone),
+                _phoneField(),
                 const SizedBox(height: 12),
-                _field(_emailCtrl, 'Email', keyboard: TextInputType.emailAddress),
+                _emailField(),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: _bloodGroup.isEmpty ? null : _bloodGroup,
@@ -352,6 +392,25 @@ class _AddPatientSheetState extends State<_AddPatientSheet> {
           ),
           child: Text(label, style: TextStyle(color: _gender == value ? Colors.white : AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
         ),
+      );
+
+  Widget _phoneField() => TextFormField(
+        controller: _phoneCtrl,
+        keyboardType: TextInputType.phone,
+        inputFormatters: [_PhoneFormatter()],
+        decoration: _inputDecoration('Телефон', hint: '+380 (XX) XXX-XX-XX').copyWith(
+          prefixIcon: const Icon(Icons.phone_outlined, size: 18, color: AppColors.textSecondary),
+        ),
+        validator: _validatePhone,
+      );
+
+  Widget _emailField() => TextFormField(
+        controller: _emailCtrl,
+        keyboardType: TextInputType.emailAddress,
+        decoration: _inputDecoration('Email', hint: 'user@example.com').copyWith(
+          prefixIcon: const Icon(Icons.alternate_email, size: 18, color: AppColors.textSecondary),
+        ),
+        validator: _validateEmail,
       );
 
   Widget _field(TextEditingController ctrl, String label, {bool required = false, String? hint, TextInputType? keyboard}) =>

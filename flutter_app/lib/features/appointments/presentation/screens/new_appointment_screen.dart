@@ -21,6 +21,8 @@ class _NewAppointmentScreenState extends State<NewAppointmentScreen> {
   String? _selectedSlot;
   String _selectedReason = 'repeat';
   DoctorInfo? _selectedDoctor;
+  String? _errorMessage;
+  final ScrollController _scrollController = ScrollController();
 
   // patient picker (used when screen opened without patientId)
   String? _pickedPatientId;
@@ -42,6 +44,21 @@ class _NewAppointmentScreenState extends State<NewAppointmentScreen> {
     super.initState();
     context.read<AppointmentsBloc>().add(AppointmentDoctorsRequested());
     if (widget.patientId == null) _loadPatients();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _showError(String message) {
+    setState(() => _errorMessage = message);
+    _scrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+  }
+
+  void _clearError() {
+    if (_errorMessage != null) setState(() => _errorMessage = null);
   }
 
   Future<void> _loadPatients() async {
@@ -73,13 +90,18 @@ class _NewAppointmentScreenState extends State<NewAppointmentScreen> {
 
   void _confirm() {
     if (_effectivePatientId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Оберіть пацієнта'), backgroundColor: AppColors.warning));
+      _showError('Оберіть пацієнта зі списку');
       return;
     }
-    if (_selectedDoctor == null || _selectedSlot == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Оберіть лікаря, дату та час'), backgroundColor: AppColors.warning));
+    if (_selectedDoctor == null) {
+      _showError('Оберіть лікаря');
       return;
     }
+    if (_selectedSlot == null) {
+      _showError('Оберіть вільний час прийому');
+      return;
+    }
+    _clearError();
     final parts = _selectedSlot!.split(':');
     final startTime = DateTime(_selectedDay.year, _selectedDay.month, _selectedDay.day, int.parse(parts[0]), int.parse(parts[1]));
     final endTime = startTime.add(const Duration(minutes: 30));
@@ -101,12 +123,13 @@ class _NewAppointmentScreenState extends State<NewAppointmentScreen> {
           _showReceiptDialog(context, state);
         }
         if (state is AppointmentsError) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message), backgroundColor: AppColors.danger));
+          _showError(state.message);
         }
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
         body: CustomScrollView(
+          controller: _scrollController,
           slivers: [
             SliverAppBar(
               pinned: true,
@@ -135,6 +158,28 @@ class _NewAppointmentScreenState extends State<NewAppointmentScreen> {
               padding: const EdgeInsets.all(16),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
+                  // Error banner
+                  if (_errorMessage != null) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.danger.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.danger.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(children: [
+                        const Icon(Icons.error_outline_rounded, color: AppColors.danger, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(child: Text(_errorMessage!, style: const TextStyle(color: AppColors.danger, fontSize: 13, fontWeight: FontWeight.w600))),
+                        GestureDetector(
+                          onTap: _clearError,
+                          child: const Icon(Icons.close_rounded, color: AppColors.danger, size: 18),
+                        ),
+                      ]),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   // Patient selector (only when not pre-filled)
                   if (widget.patientId == null) ...[
                     _buildPatientSelector(),
@@ -408,10 +453,16 @@ class _NewAppointmentScreenState extends State<NewAppointmentScreen> {
             content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text('Введіть email пацієнта — надішлемо чек із посиланням на оплату.', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
               const SizedBox(height: 14),
-              TextField(
+              TextFormField(
                 controller: emailController,
                 keyboardType: TextInputType.emailAddress,
                 autofocus: true,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Введіть email';
+                  final ok = RegExp(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$').hasMatch(v.trim());
+                  return ok ? null : 'Некоректний email';
+                },
                 decoration: InputDecoration(
                   hintText: 'patient@example.com',
                   prefixIcon: const Icon(Icons.alternate_email, size: 18),
@@ -419,6 +470,8 @@ class _NewAppointmentScreenState extends State<NewAppointmentScreen> {
                   fillColor: AppColors.background,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AppColors.border)),
                   enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AppColors.border)),
+                  errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.danger)),
+                  focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.danger, width: 1.5)),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 ),
               ),
@@ -438,6 +491,8 @@ class _NewAppointmentScreenState extends State<NewAppointmentScreen> {
                 onPressed: sending ? null : () async {
                   final email = emailController.text.trim();
                   if (email.isEmpty) return;
+                  final validEmail = RegExp(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$').hasMatch(email);
+                  if (!validEmail) return;
                   setS(() => sending = true);
                   try {
                     await ApiService.instance.post('/appointments/receipt', data: {
