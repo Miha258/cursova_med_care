@@ -1,6 +1,9 @@
 -- MedCare CRM — повний dataset
 -- Запуск: docker exec -i medcare-postgres psql -U postgres -d medcare < seed.sql
 
+-- Увімкнути pgcrypto для bcrypt хешів
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- Очистити старі дані (в правильному порядку FK)
 TRUNCATE TABLE lab_tests, prescriptions, medical_records, invoices, appointments, medications, doctors, users, wards RESTART IDENTITY CASCADE;
 

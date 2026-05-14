@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 
 class ApiConstants {
   ApiConstants._();
@@ -7,7 +6,6 @@ class ApiConstants {
   // localhost — для веб-браузера на тому ж Mac
   // 192.168.19.103 — для фізичного телефону в тій самій Wi-Fi мережі
   static String get baseUrl {
-    // Твій реальний сервер
     return 'http://45.12.111.55:3001/api';
   }
 
