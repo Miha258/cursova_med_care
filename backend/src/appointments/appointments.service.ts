@@ -1,15 +1,25 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
+import { Repository, Between } from 'typeorm';
 import { Appointment, AppointmentStatus } from './entities/appointment.entity';
+import { Patient } from '../patients/entities/patient.entity';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { FinanceService } from '../finance/finance.service';
+import { MailerService } from '../mailer/mailer.service';
+
+export class UpdateAppointmentDto {
+  startTime?: string;
+  endTime?: string;
+  doctorId?: string;
+}
 
 @Injectable()
 export class AppointmentsService {
   constructor(
     @InjectRepository(Appointment) private repo: Repository<Appointment>,
+    @InjectRepository(Patient) private patientRepo: Repository<Patient>,
     private financeService: FinanceService,
+    private mailer: MailerService,
   ) {}
 
   async create(dto: CreateAppointmentDto) {
@@ -20,11 +30,10 @@ export class AppointmentsService {
     });
     const saved = await this.repo.save(appointment);
 
-    // Create a pending invoice for the appointment
     await this.financeService.createForAppointment({
       patientId: saved.patientId,
       appointmentId: saved.id,
-      amount: 350.00, // Fixed price for demo
+      amount: 350.00,
       description: `Прийом у лікаря`,
     });
 
@@ -34,6 +43,7 @@ export class AppointmentsService {
   findAll(patientId?: string) {
     return this.repo.find({
       where: patientId ? { patientId } : undefined,
+      relations: ['patient', 'doctor'],
       order: { startTime: 'ASC' },
     });
   }
@@ -45,6 +55,7 @@ export class AppointmentsService {
     end.setHours(23, 59, 59, 999);
     return this.repo.find({
       where: { startTime: Between(start, end), status: AppointmentStatus.SCHEDULED },
+      relations: ['patient', 'doctor'],
       order: { startTime: 'ASC' },
     });
   }
@@ -55,11 +66,7 @@ export class AppointmentsService {
     const dayEnd = new Date(day); dayEnd.setHours(23, 59, 59, 999);
 
     const booked = await this.repo.find({
-      where: {
-        doctorId,
-        startTime: Between(dayStart, dayEnd),
-        status: AppointmentStatus.SCHEDULED,
-      },
+      where: { doctorId, startTime: Between(dayStart, dayEnd), status: AppointmentStatus.SCHEDULED },
       select: ['startTime'],
     });
 
@@ -74,9 +81,37 @@ export class AppointmentsService {
   }
 
   async findOne(id: string) {
-    const a = await this.repo.findOne({ where: { id } });
+    const a = await this.repo.findOne({ where: { id }, relations: ['patient', 'doctor'] });
     if (!a) throw new NotFoundException(`Прийом #${id} не знайдено`);
     return a;
+  }
+
+  async update(id: string, dto: UpdateAppointmentDto) {
+    const appointment = await this.findOne(id);
+    const updateData: any = {};
+    if (dto.startTime) updateData.startTime = new Date(dto.startTime);
+    if (dto.endTime)   updateData.endTime   = new Date(dto.endTime);
+    if (dto.doctorId)  updateData.doctorId  = dto.doctorId;
+    await this.repo.update(id, updateData);
+
+    // Send email notification to patient
+    try {
+      const patient = await this.patientRepo.findOne({ where: { id: appointment.patientId } });
+      if (patient?.email) {
+        const newStart = updateData.startTime ?? appointment.startTime;
+        const d = new Date(newStart);
+        const dateStr = `${d.getDate().toString().padStart(2,'0')}.${(d.getMonth()+1).toString().padStart(2,'0')}.${d.getFullYear()}`;
+        const timeStr = `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+        await this.mailer.sendAppointmentUpdate({
+          to: patient.email,
+          patientName: `${patient.firstName} ${patient.lastName}`,
+          date: dateStr,
+          time: timeStr,
+        });
+      }
+    } catch (_) {}
+
+    return this.findOne(id);
   }
 
   async cancel(id: string) {

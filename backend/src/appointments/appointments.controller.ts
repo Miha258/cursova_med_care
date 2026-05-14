@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Delete, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
-import { AppointmentsService } from './appointments.service';
+import { AppointmentsService, UpdateAppointmentDto } from './appointments.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { MailerService } from '../mailer/mailer.service';
@@ -42,6 +42,12 @@ export class AppointmentsController {
   @ApiOperation({ summary: 'POST /appointments — запис на прийом + FCM нотифікація' })
   create(@Body() dto: CreateAppointmentDto) {
     return this.service.create(dto);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'PATCH /appointments/:id — перенести прийом (startTime/endTime/doctorId)' })
+  update(@Param('id') id: string, @Body() dto: UpdateAppointmentDto) {
+    return this.service.update(id, dto);
   }
 
   @Patch(':id/complete')
